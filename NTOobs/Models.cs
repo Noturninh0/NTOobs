@@ -14,7 +14,8 @@ public enum ActionType
     ToggleStream,
     Hotkey,
     KeyCombo,
-    Backtrack
+    Backtrack,
+    MusicToggle
 }
 
 public sealed record ActionOption(ActionType Type, string Label, bool NeedsTarget, string TargetHint, string DefaultTarget = "");
@@ -27,9 +28,10 @@ public static class Actions
         new(ActionType.ToggleMute, "Mutar / desmutar fonte de áudio", true, "3. Nome da fonte de áudio:"),
         new(ActionType.ToggleRecord, "Iniciar / parar gravação", false, "3. (esta ação não precisa de destino)"),
         new(ActionType.ToggleStream, "Iniciar / parar transmissão", false, "3. (esta ação não precisa de destino)"),
-        new(ActionType.Backtrack, "Salvar Backtrack", true, "3. Combinação que salva o backtrack no OBS:", "Ctrl+Alt+Shift+6"),
+        new(ActionType.Backtrack, "Salvar Backtrack", true, "3. Combinação que o OBS usa para salvar o backtrack (escolha a sua):", "Ctrl+Alt+Shift+6"),
         new(ActionType.Hotkey, "Executar um atalho do OBS (lista)", true, "3. Nome interno do atalho:"),
         new(ActionType.KeyCombo, "Simular combinação de teclas no OBS", true, "3. Combinação (ex.: Ctrl+Alt+F9):"),
+        new(ActionType.MusicToggle, "Pausar / retomar a música live", false, "3. (esta ação não precisa de destino)"),
     };
 
     public static ActionOption Get(ActionType t) => All.First(a => a.Type == t);
@@ -88,6 +90,11 @@ public sealed class Settings
     public string Password { get; set; } = "";
     public bool AutoConnect { get; set; } = true;
     public bool DarkTheme { get; set; } = true;
+    public string MusicUrl { get; set; } = "";
+    public int MusicVolume { get; set; } = 60;
+    public bool MusicLoop { get; set; } = true;
+    public bool MusicShuffle { get; set; }
+    public bool MusicEnabled { get; set; }
     public List<DeckBinding> Bindings { get; set; } = new();
 }
 

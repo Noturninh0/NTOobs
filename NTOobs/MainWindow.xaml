@@ -17,6 +17,7 @@
             <StackPanel Margin="0,12,0,0" HorizontalAlignment="Center">
                 <RadioButton x:Name="NavPanel" Style="{StaticResource NavButton}" Content="&#xE80F;" ToolTip="Painel" Tag="0" Checked="Nav_Checked"/>
                 <RadioButton x:Name="NavShortcuts" Style="{StaticResource NavButton}" Content="&#xE765;" ToolTip="Atalhos" Tag="1" Checked="Nav_Checked"/>
+                <RadioButton x:Name="NavMusic" Style="{StaticResource NavButton}" Content="&#xE8D6;" ToolTip="Música da live" Tag="4" Checked="Nav_Checked"/>
                 <RadioButton x:Name="NavConnection" Style="{StaticResource NavButton}" Content="&#xE774;" ToolTip="Conexão com o OBS" Tag="2" Checked="Nav_Checked"/>
                 <RadioButton x:Name="NavLog" Style="{StaticResource NavButton}" Content="&#xE8A5;" ToolTip="Registro" Tag="3" Checked="Nav_Checked"/>
             </StackPanel>
@@ -199,10 +200,13 @@
                                 <RadioButton x:Name="RbStream" Style="{StaticResource ChoiceRadio}" Content="Iniciar / parar transmissão" Tag="ToggleStream" Checked="Action_Changed"/>
                                 <RadioButton x:Name="RbBacktrack" Style="{StaticResource ChoiceRadio}" Content="Salvar Backtrack" Tag="Backtrack" Checked="Action_Changed"/>
                                 <RadioButton x:Name="RbHotkey" Style="{StaticResource ChoiceRadio}" Content="Executar um atalho do OBS (lista)" Tag="Hotkey" Checked="Action_Changed"/>
-                                <RadioButton x:Name="RbCombo" Style="{StaticResource ChoiceRadio}" Content="Simular combinação de teclas no OBS" Tag="KeyCombo" Checked="Action_Changed" Margin="0,0,0,16"/>
+                                <RadioButton x:Name="RbCombo" Style="{StaticResource ChoiceRadio}" Content="Simular combinação de teclas no OBS" Tag="KeyCombo" Checked="Action_Changed"/>
+                                <RadioButton x:Name="RbMusic" Style="{StaticResource ChoiceRadio}" Content="Pausar / retomar a música live" Tag="MusicToggle" Checked="Action_Changed" Margin="0,0,0,16"/>
 
                                 <TextBlock x:Name="TxtTargetLabel" Text="3. Nome da cena:"/>
                                 <TextBox x:Name="TxtTarget" Margin="0,6,0,8"/>
+                                <Button x:Name="BtnCaptureCombo" Content="Capturar combinação (aperte as teclas)" Visibility="Collapsed"
+                                        Margin="0,0,0,8" Click="BtnCaptureCombo_Click"/>
                                 <DockPanel Margin="0,0,0,4">
                                     <Button DockPanel.Dock="Right" Content="Atualizar" Padding="8,3" Click="BtnRefresh_Click"/>
                                     <TextBlock x:Name="TxtListLabel" Text="Cenas do OBS (clique para usar)" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
@@ -217,6 +221,70 @@
                             </StackPanel>
                         </Border>
                     </Grid>
+                </ScrollViewer>
+
+                <!-- PÁGINA 4: Música da live -->
+                <ScrollViewer x:Name="PageMusic" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                    <StackPanel Margin="24" MaxWidth="1100">
+                        <Border Style="{StaticResource CardBorder}" MaxWidth="640" HorizontalAlignment="Left">
+                            <StackPanel>
+                                <TextBlock Text="Música da live" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,14"
+                                           Text="Cole o link de uma playlist do YouTube ou do Spotify. O som entra no mixer de áudio do OBS e continua em todas as cenas. Spotify toca pelo aplicativo do computador, com as músicas inteiras."/>
+
+                                <TextBlock Text="Link da playlist" Style="{StaticResource CapsText}" Margin="0,0,0,4"/>
+                                <TextBox x:Name="TxtMusicUrl"/>
+
+                                <TextBlock Text="Volume (YouTube)" Style="{StaticResource CapsText}" Margin="0,14,0,4"/>
+                                <DockPanel>
+                                    <TextBlock x:Name="TxtVolValue" DockPanel.Dock="Right" Width="40" TextAlignment="Right" Text="60%"/>
+                                    <Slider x:Name="SldVolume" Minimum="0" Maximum="100" ValueChanged="SldVolume_ValueChanged"
+                                            LostMouseCapture="SldVolume_Done"/>
+                                </DockPanel>
+
+                                <CheckBox x:Name="ChkMusicLoop" Content="Repetir a playlist (YouTube)" Margin="0,14,0,6"/>
+                                <CheckBox x:Name="ChkMusicShuffle" Content="Ordem aleatória (YouTube)"/>
+
+                                <TextBlock Text="Tecla para pausar / retomar a música" Style="{StaticResource CapsText}" Margin="0,18,0,4"/>
+                                <DockPanel>
+                                    <Button x:Name="BtnMusicKeyClear" DockPanel.Dock="Right" Content="Remover" Margin="8,0,0,0" Click="BtnMusicKeyClear_Click"/>
+                                    <Button x:Name="BtnMusicKey" DockPanel.Dock="Right" Content="Definir tecla" Margin="8,0,0,0" Click="BtnMusicKey_Click"/>
+                                    <TextBlock x:Name="TxtMusicKey" Text="Nenhuma tecla definida" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis"/>
+                                </DockPanel>
+                                <CheckBox x:Name="ChkMusicOnlyDevice" Margin="0,8,0,0"
+                                          Content="Somente no teclado em que eu apertar (útil para teclado externo)"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                    <Button x:Name="BtnMusicStart" Content="Iniciar / aplicar" Style="{StaticResource PrimaryButton}"
+                                            Margin="0,0,8,0" Click="BtnMusicStart_Click"/>
+                                    <Button Content="Pausar / retomar" Margin="0,0,8,0" Click="BtnMusicToggle_Click"/>
+                                    <Button Content="Parar e remover do OBS" Click="BtnMusicStop_Click"/>
+                                </StackPanel>
+
+                                <TextBlock x:Name="TxtMusicStatus" Text="Música desligada" FontWeight="SemiBold"
+                                           TextWrapping="Wrap" Margin="0,16,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorder}" MaxWidth="640" HorizontalAlignment="Left" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Como funciona" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,6"
+                                           Text="• YouTube: o NTOobs cria no OBS a fonte &quot;NTOobs Música&quot; e a coloca em todas as cenas (fora da tela), então a música não corta ao trocar de cena. Se você fechar o NTOobs, ela continua tocando."/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,6"
+                                           Text="• Spotify: o NTOobs abre a playlist no aplicativo Spotify (precisa estar instalado e com a sua conta) e cria no OBS a fonte &quot;NTOobs Spotify&quot;, que captura só o som do Spotify, em todas as cenas. As músicas tocam inteiras. Se a playlist abrir sem tocar, clique no play verde dela uma vez."/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,6"
+                                           Text="• O som aparece no Mixer de áudio do OBS com o nome da fonte. Ajuste o volume ou silencie por lá. No Spotify, repetir, aleatório e volume são definidos no próprio aplicativo."/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,6"
+                                           Text="• Para pausar/retomar com uma tecla: clique em Definir tecla acima e aperte a tecla que quiser, em qualquer teclado. Ela também aparece na aba Atalhos."/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,6"
+                                           Text="• O atalho de pausar/retomar funciona com o NTOobs aberto (pode ficar minimizado). Com o Spotify, ele pausa só o Spotify, sem mexer em outros players."/>
+                                <TextBlock Style="{StaticResource MutedText}"
+                                           Text="• Cuidado com direitos autorais: músicas protegidas podem silenciar ou derrubar suas transmissões e VODs."/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </ScrollViewer>
 
                 <!-- PÁGINA 2: Conexão -->

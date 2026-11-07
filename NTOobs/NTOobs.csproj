@@ -8,6 +8,7 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>NTOobs</RootNamespace>
     <AssemblyName>NTOobs</AssemblyName>
+    <Version>1.2.0</Version>
     <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 

@@ -38,7 +38,9 @@ public sealed class ObsClient : IDisposable
 
         try
         {
-            await ws.ConnectAsync(new Uri($"ws://{host}:{port}"), _cts.Token);
+            using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+            connectCts.CancelAfter(5000);
+            await ws.ConnectAsync(new Uri($"ws://{host}:{port}"), connectCts.Token);
             _ = Task.Run(() => ReceiveLoopAsync(ws, _cts.Token));
 
             var finished = await Task.WhenAny(_identified.Task, Task.Delay(5000));
@@ -53,6 +55,9 @@ public sealed class ObsClient : IDisposable
                 throw new InvalidOperationException(
                     "Não foi possível conectar (" + (ex.InnerException?.Message ?? ex.Message) +
                     "). Verifique se o OBS está aberto, o servidor WebSocket ligado, a porta e a senha.", ex);
+            if (ex is OperationCanceledException)
+                throw new TimeoutException(
+                    $"O OBS não respondeu em {host}:{port}. Confira se o servidor WebSocket está ligado e se a porta é essa.");
             throw;
         }
     }
