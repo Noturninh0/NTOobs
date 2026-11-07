@@ -49,8 +49,19 @@ Na aba **Atalhos** (ícone de teclado), no cartão **Novo atalho**:
    - Mutar / desmutar fonte de áudio
    - Iniciar / parar gravação
    - Iniciar / parar transmissão
+   - **Salvar Backtrack** (clipe dos últimos segundos, do plugin de backtrack/vertical)
+   - **Executar um atalho do OBS (lista)**: qualquer atalho que o OBS conhece, inclusive os de plugins
+   - **Simular combinação de teclas no OBS**: aperta uma combinação como `Ctrl+Alt+F9` dentro do OBS
 4. Para cena ou áudio, informe o **destino**: clique em um nome da lista de cenas do OBS (use **Atualizar** se criou cenas novas) ou digite o nome exato.
 5. Clique em **Adicionar atalho**.
+
+### Backtrack e plugins do OBS
+
+O NTOobs lê a lista de atalhos direto do OBS conectado, então funciona com um OBS modificado, com plugins extras.
+
+- **Salvar Backtrack:** vem preenchido com `Ctrl+Alt+Shift+6`. No OBS, abra **Configurações → Atalhos**, procure o atalho "Salvar Backtrack" e coloque essa mesma combinação nele. Se você usar outra combinação no OBS, troque o campo de destino no NTOobs. O NTOobs "aperta" essa combinação dentro do OBS quando você usa a tecla que escolheu.
+- **Executar um atalho do OBS (lista):** escolha a ação, clique em **Atualizar** (com o OBS conectado) e use o campo de filtro para achar o atalho, por exemplo digitando `backtrack`. Clique no nome para usar. Os nomes da lista são os nomes internos do OBS, que podem ser diferentes do texto mostrado em Configurações → Atalhos.
+- Alguns atalhos de plugins pertencem a uma fonte ou saída específica e podem não disparar pelo nome. Nesse caso, defina uma combinação para ele em Configurações → Atalhos do OBS e use **Simular combinação de teclas no OBS**.
 
 ### 3. Testar
 Na lista de atalhos, o botão **Testar** dispara a ação sem apertar a tecla. O **Painel** mostra quantas vezes cada atalho foi usado nesta sessão. A aba **Registro** mostra tudo o que aconteceu, incluindo erros.
@@ -76,6 +87,7 @@ Na lista de atalhos, o botão **Testar** dispara a ação sem apertar a tecla. O
 
 ## Limitações
 
+- A ação de simular combinação aceita letras, números, F1 a F24, teclas do teclado numérico (`Num0` a `Num9`) e teclas como `Space`, `Enter`, `Esc`, `Tab`, setas, `Home`, `End`, `PageUp` e `PageDown`, com `Ctrl`, `Alt`, `Shift` e `Win`.
 - Dois teclados do mesmo modelo (mesmo fabricante e produto) não são diferenciados entre si.
 - A senha do OBS fica salva em texto simples no `config.json`.
 - O programa não é assinado digitalmente (veja o aviso do Windows acima).

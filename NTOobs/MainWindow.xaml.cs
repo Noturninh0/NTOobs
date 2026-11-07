@@ -34,6 +34,8 @@ public partial class MainWindow : Window
     readonly Settings _settings = ConfigStore.Load();
     readonly ObservableCollection<DeckBinding> _bindings = new();
     readonly ObservableCollection<string> _scenes = new();
+    readonly ObservableCollection<string> _hotkeyView = new();
+    readonly List<string> _allHotkeys = new();
 
     ActionType _action = ActionType.Scene;
     bool _capturing;
@@ -178,6 +180,7 @@ public partial class MainWindow : Window
         SetStatus("Conectado", true);
         SaveSettings();
         await RefreshScenesAsync();
+        await RefreshHotkeysAsync();
     }
 
     async Task ReconnectLoopAsync()
@@ -234,7 +237,43 @@ public partial class MainWindow : Window
         }
     }
 
-    async void BtnRefresh_Click(object sender, RoutedEventArgs e) => await RefreshScenesAsync();
+    async Task RefreshHotkeysAsync()
+    {
+        try
+        {
+            var data = await _obs.RequestAsync("GetHotkeyList");
+            _allHotkeys.Clear();
+            foreach (var h in data.GetProperty("hotkeys").EnumerateArray())
+            {
+                var name = h.GetString();
+                if (!string.IsNullOrEmpty(name)) _allHotkeys.Add(name);
+            }
+            _allHotkeys.Sort(StringComparer.OrdinalIgnoreCase);
+            ApplyHotkeyFilter();
+            Log($"{_allHotkeys.Count} atalho(s) do OBS carregado(s) (inclui os de plugins).");
+        }
+        catch (Exception ex)
+        {
+            Log("Erro ao listar atalhos do OBS: " + ex.Message);
+        }
+    }
+
+    void ApplyHotkeyFilter()
+    {
+        var filter = TxtFilter.Text.Trim();
+        _hotkeyView.Clear();
+        foreach (var h in _allHotkeys)
+            if (filter.Length == 0 || h.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                _hotkeyView.Add(h);
+    }
+
+    void TxtFilter_TextChanged(object sender, TextChangedEventArgs e) => ApplyHotkeyFilter();
+
+    async void BtnRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshScenesAsync();
+        await RefreshHotkeysAsync();
+    }
 
     void SaveSettings()
     {
@@ -293,6 +332,20 @@ public partial class MainWindow : Window
                 case ActionType.ToggleStream:
                     await _obs.RequestAsync("ToggleStream");
                     break;
+                case ActionType.Hotkey:
+                    await _obs.RequestAsync("TriggerHotkeyByName", new { hotkeyName = b.Target });
+                    break;
+                case ActionType.KeyCombo:
+                case ActionType.Backtrack:
+                {
+                    var (keyId, m) = ObsKeys.Parse(b.Target);
+                    await _obs.RequestAsync("TriggerHotkeyByKeySequence", new
+                    {
+                        keyId,
+                        keyModifiers = new { shift = m.Shift, control = m.Control, alt = m.Alt, command = m.Command }
+                    });
+                    break;
+                }
             }
             b.Fired++;
             RefreshLists();
@@ -321,8 +374,16 @@ public partial class MainWindow : Window
         var opt = Actions.Get(type);
         TxtTargetLabel.Text = opt.TargetHint;
         TxtTarget.IsEnabled = opt.NeedsTarget;
-        ListScenes.IsEnabled = opt.NeedsTarget;
-        if (!opt.NeedsTarget) TxtTarget.Text = "";
+        TxtTarget.Text = opt.DefaultTarget;
+
+        // a lista ao lado mostra cenas ou os atalhos do OBS, conforme a ação
+        bool hotkeys = type == ActionType.Hotkey;
+        ListScenes.ItemsSource = hotkeys ? _hotkeyView : _scenes;
+        ListScenes.IsEnabled = type is ActionType.Scene or ActionType.Hotkey;
+        TxtFilter.Visibility = hotkeys ? Visibility.Visible : Visibility.Collapsed;
+        TxtListLabel.Text = hotkeys
+            ? "Atalhos do OBS (clique para usar)"
+            : "Cenas do OBS (clique para usar)";
     }
 
     void ListScenes_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -344,6 +405,16 @@ public partial class MainWindow : Window
         {
             MessageBox.Show(this, "Informe o destino (nome da cena ou da fonte).", "NTOobs");
             return;
+        }
+
+        if (_action is ActionType.KeyCombo or ActionType.Backtrack)
+        {
+            try { ObsKeys.Parse(target); }
+            catch (FormatException ex)
+            {
+                MessageBox.Show(this, ex.Message, "NTOobs");
+                return;
+            }
         }
 
         _bindings.Add(new DeckBinding

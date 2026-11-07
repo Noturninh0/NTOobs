@@ -196,15 +196,19 @@
                                 <RadioButton x:Name="RbScene" Style="{StaticResource ChoiceRadio}" Content="Trocar de cena" Tag="Scene" Checked="Action_Changed"/>
                                 <RadioButton x:Name="RbMute" Style="{StaticResource ChoiceRadio}" Content="Mutar / desmutar fonte de áudio" Tag="ToggleMute" Checked="Action_Changed"/>
                                 <RadioButton x:Name="RbRecord" Style="{StaticResource ChoiceRadio}" Content="Iniciar / parar gravação" Tag="ToggleRecord" Checked="Action_Changed"/>
-                                <RadioButton x:Name="RbStream" Style="{StaticResource ChoiceRadio}" Content="Iniciar / parar transmissão" Tag="ToggleStream" Checked="Action_Changed" Margin="0,0,0,16"/>
+                                <RadioButton x:Name="RbStream" Style="{StaticResource ChoiceRadio}" Content="Iniciar / parar transmissão" Tag="ToggleStream" Checked="Action_Changed"/>
+                                <RadioButton x:Name="RbBacktrack" Style="{StaticResource ChoiceRadio}" Content="Salvar Backtrack" Tag="Backtrack" Checked="Action_Changed"/>
+                                <RadioButton x:Name="RbHotkey" Style="{StaticResource ChoiceRadio}" Content="Executar um atalho do OBS (lista)" Tag="Hotkey" Checked="Action_Changed"/>
+                                <RadioButton x:Name="RbCombo" Style="{StaticResource ChoiceRadio}" Content="Simular combinação de teclas no OBS" Tag="KeyCombo" Checked="Action_Changed" Margin="0,0,0,16"/>
 
                                 <TextBlock x:Name="TxtTargetLabel" Text="3. Nome da cena:"/>
                                 <TextBox x:Name="TxtTarget" Margin="0,6,0,8"/>
                                 <DockPanel Margin="0,0,0,4">
                                     <Button DockPanel.Dock="Right" Content="Atualizar" Padding="8,3" Click="BtnRefresh_Click"/>
-                                    <TextBlock Text="Cenas do OBS (clique para usar)" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="TxtListLabel" Text="Cenas do OBS (clique para usar)" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
                                 </DockPanel>
-                                <ListBox x:Name="ListScenes" MaxHeight="120" Margin="0,0,0,16" SelectionChanged="ListScenes_SelectionChanged"/>
+                                <TextBox x:Name="TxtFilter" Margin="0,0,0,6" Visibility="Collapsed" ToolTip="Filtrar a lista (ex.: backtrack)" TextChanged="TxtFilter_TextChanged"/>
+                                <ListBox x:Name="ListScenes" MaxHeight="160" Margin="0,0,0,16" SelectionChanged="ListScenes_SelectionChanged"/>
 
                                 <Button x:Name="BtnAdd" Content="Adicionar atalho" Style="{StaticResource PrimaryButton}" Click="BtnAdd_Click"/>
 

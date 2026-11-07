@@ -11,10 +11,13 @@ public enum ActionType
     Scene,
     ToggleMute,
     ToggleRecord,
-    ToggleStream
+    ToggleStream,
+    Hotkey,
+    KeyCombo,
+    Backtrack
 }
 
-public sealed record ActionOption(ActionType Type, string Label, bool NeedsTarget, string TargetHint);
+public sealed record ActionOption(ActionType Type, string Label, bool NeedsTarget, string TargetHint, string DefaultTarget = "");
 
 public static class Actions
 {
@@ -24,6 +27,9 @@ public static class Actions
         new(ActionType.ToggleMute, "Mutar / desmutar fonte de áudio", true, "3. Nome da fonte de áudio:"),
         new(ActionType.ToggleRecord, "Iniciar / parar gravação", false, "3. (esta ação não precisa de destino)"),
         new(ActionType.ToggleStream, "Iniciar / parar transmissão", false, "3. (esta ação não precisa de destino)"),
+        new(ActionType.Backtrack, "Salvar Backtrack", true, "3. Combinação que salva o backtrack no OBS:", "Ctrl+Alt+Shift+6"),
+        new(ActionType.Hotkey, "Executar um atalho do OBS (lista)", true, "3. Nome interno do atalho:"),
+        new(ActionType.KeyCombo, "Simular combinação de teclas no OBS", true, "3. Combinação (ex.: Ctrl+Alt+F9):"),
     };
 
     public static ActionOption Get(ActionType t) => All.First(a => a.Type == t);
