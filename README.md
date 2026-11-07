@@ -59,7 +59,7 @@ Na aba **Atalhos** (ícone de teclado), no cartão **Novo atalho**:
 
 O NTOobs lê a lista de atalhos direto do OBS conectado, então funciona com um OBS modificado, com plugins extras.
 
-- **Salvar Backtrack:** vem preenchido com `Ctrl+Alt+Shift+6`. No OBS, abra **Configurações → Atalhos**, procure o atalho "Salvar Backtrack" e coloque essa mesma combinação nele. Se você usar outra combinação no OBS, troque o campo de destino no NTOobs. O NTOobs "aperta" essa combinação dentro do OBS quando você usa a tecla que escolheu.
+- **Salvar Backtrack:** vem preenchido com `Ctrl+Alt+Shift+6`. No OBS, abra **Configurações → Atalhos**, procure o atalho "Salvar Backtrack" e coloque essa mesma combinação nele. Se você usar outra combinação no OBS, clique em **Capturar combinação** e aperte as teclas que você configurou lá (ou digite no campo). O NTOobs "aperta" essa combinação dentro do OBS quando você usa a tecla que escolheu.
 - **Executar um atalho do OBS (lista):** escolha a ação, clique em **Atualizar** (com o OBS conectado) e use o campo de filtro para achar o atalho, por exemplo digitando `backtrack`. Clique no nome para usar. Os nomes da lista são os nomes internos do OBS, que podem ser diferentes do texto mostrado em Configurações → Atalhos.
 - Alguns atalhos de plugins pertencem a uma fonte ou saída específica e podem não disparar pelo nome. Nesse caso, defina uma combinação para ele em Configurações → Atalhos do OBS e use **Simular combinação de teclas no OBS**.
 
@@ -69,6 +69,36 @@ Na lista de atalhos, o botão **Testar** dispara a ação sem apertar a tecla. O
 ### Outros detalhes
 - O botão de sol/lua no topo alterna entre tema escuro e claro.
 - Os atalhos ficam salvos em `%AppData%\NTOobs\config.json`.
+
+## Música da live
+
+A aba **Música** (ícone de nota musical) toca uma playlist durante a live, dentro do OBS.
+
+1. Conecte ao OBS (aba Conexão).
+2. Na aba Música, cole o link de uma playlist do **YouTube** ou do **Spotify**.
+3. No YouTube, ajuste o volume e marque se quer repetir a playlist ou tocar em ordem aleatória.
+4. Clique em **Iniciar / aplicar**. No YouTube, o NTOobs cria no OBS uma fonte chamada **NTOobs Música**, com o áudio no Mixer de áudio, e a coloca em todas as cenas (fora da tela, só o som importa).
+5. Para pausar e retomar com uma tecla: na própria aba Música, clique em **Definir tecla** e aperte a tecla que quiser, em qualquer teclado. Marque "Somente no teclado em que eu apertar" se for um teclado externo. A tecla também aparece na aba **Atalhos**, onde você pode criar outras com a ação **Pausar / retomar a música live**.
+
+Como a música funciona:
+- Trocar de cena não interrompe a música, porque a fonte está em todas as cenas. Ela só pausa pelo atalho (ou pelo botão da aba Música).
+- Se você fechar o NTOobs, a música do YouTube continua tocando no OBS. Para pausar ou retomar, é preciso abrir o NTOobs de novo.
+- A playlist, o volume e as opções ficam salvos. Ao abrir o NTOobs e conectar ao OBS, ele confere a fonte e, se o player não estiver respondendo (por exemplo, se o OBS foi aberto com o NTOobs fechado), recarrega a fonte.
+- Se mudar o link e clicar em **Iniciar / aplicar**, a nova playlist passa a tocar.
+- **Parar e remover do OBS** apaga a fonte de música do OBS (e pausa o Spotify, se estiver tocando).
+
+### Spotify (músicas inteiras)
+
+Com link do Spotify, o NTOobs usa o **aplicativo Spotify do computador**, e não um player dentro do OBS (esse player só tocava trechos de 30 segundos).
+
+- É preciso ter o Spotify para Windows instalado e com a sua conta conectada.
+- Ao clicar em **Iniciar / aplicar**, o NTOobs abre a playlist no Spotify e cria no OBS a fonte **NTOobs Spotify** (Captura de áudio de aplicativo). Ela captura só o som do Spotify e fica em todas as cenas.
+- Se a playlist abrir sem começar a tocar, clique no play verde dela uma vez. Depois disso, o seu atalho pausa e retoma só o Spotify.
+- Repetir, ordem aleatória e volume são definidos no próprio Spotify. O volume que vai para a live também pode ser ajustado no mixer do OBS.
+- O atalho funciona com o NTOobs aberto (pode ficar minimizado). Se fechar o NTOobs, o Spotify continua tocando normalmente.
+- Requer OBS 28 ou mais novo (Captura de áudio de aplicativo, Windows 10 2004 ou mais novo).
+
+Cuidado com direitos autorais: músicas protegidas podem silenciar ou derrubar suas transmissões e VODs.
 
 ## Dicas
 

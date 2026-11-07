@@ -7,6 +7,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace NTOobs;
 
@@ -39,11 +40,20 @@ public partial class MainWindow : Window
 
     ActionType _action = ActionType.Scene;
     bool _capturing;
+    bool _capturingCombo;
+    bool _capturingMusic;
+    readonly HashSet<ushort> _heldMods = new();
     ushort _capVKey;
     string _capDevice = "";
 
     bool _wantConnected;
     bool _reconnecting;
+    string? _lastConnectError;
+
+    readonly MusicServer _music = new();
+    bool _musicReady;
+    bool _musicLoaded;
+    DispatcherTimer? _musicTimer;
 
     public MainWindow()
     {
@@ -63,6 +73,22 @@ public partial class MainWindow : Window
         ListScenes.ItemsSource = _scenes;
         RefreshLists();
 
+        // música da live: o player roda dentro do OBS; aqui só o servidor local e os controles
+        TxtMusicUrl.Text = _settings.MusicUrl;
+        ChkMusicLoop.IsChecked = _settings.MusicLoop;
+        ChkMusicShuffle.IsChecked = _settings.MusicShuffle;
+        SldVolume.Value = _settings.MusicVolume;
+        TxtVolValue.Text = $"{_settings.MusicVolume}%";
+        _music.Volume = _settings.MusicVolume;
+        _music.Changed += () => Dispatcher.InvokeAsync(UpdateMusicStatus);
+        try { _musicReady = _music.Start(47633); }
+        catch (Exception ex) { Log("Erro ao iniciar o servidor de música: " + ex.Message); }
+        _musicTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _musicTimer.Tick += (_, _) => UpdateMusicStatus();
+        _musicTimer.Start();
+        _musicLoaded = true;
+        UpdateMusicStatus();
+
         RbScene.IsChecked = true;
         NavPanel.IsChecked = true;
 
@@ -80,6 +106,7 @@ public partial class MainWindow : Window
             {
                 _raw.Attach(this);
                 _raw.KeyPressed += OnKeyPressed;
+                _raw.KeyReleased += (vk, _) => _heldMods.Remove(vk);
             }
             catch (Exception ex)
             {
@@ -97,8 +124,14 @@ public partial class MainWindow : Window
             }
         };
 
-        PreviewKeyDown += (_, e) => { if (_capturing) e.Handled = true; };
-        Closing += (_, _) => _obs.Dispose();
+        PreviewKeyDown += (_, e) => { if (_capturing || _capturingCombo || _capturingMusic) e.Handled = true; };
+        Closing += (_, _) =>
+        {
+            _settings.MusicVolume = (int)SldVolume.Value;
+            SaveSettings();
+            _obs.Dispose();
+            _music.Dispose(); // a música já carregada continua tocando no OBS
+        };
     }
 
     // ---------- Tema e navegação ----------
@@ -134,6 +167,7 @@ public partial class MainWindow : Window
         PagePanel.Visibility = page == 0 ? Visibility.Visible : Visibility.Collapsed;
         PageShortcuts.Visibility = page == 1 ? Visibility.Visible : Visibility.Collapsed;
         PageConnection.Visibility = page == 2 ? Visibility.Visible : Visibility.Collapsed;
+        PageMusic.Visibility = page == 4 ? Visibility.Visible : Visibility.Collapsed;
         PageLog.Visibility = page == 3 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -143,6 +177,7 @@ public partial class MainWindow : Window
         TxtEmptyPanel.Visibility = empty;
         TxtEmptyList.Visibility = empty;
         TxtFiredTotal.Text = _bindings.Sum(b => b.Fired).ToString();
+        RefreshMusicKeyLabel();
     }
 
     // ---------- Conexão ----------
@@ -181,6 +216,8 @@ public partial class MainWindow : Window
         SaveSettings();
         await RefreshScenesAsync();
         await RefreshHotkeysAsync();
+        _lastConnectError = null;
+        await EnsureMusicAsync();
     }
 
     async Task ReconnectLoopAsync()
@@ -197,9 +234,14 @@ public partial class MainWindow : Window
                     await ConnectCoreAsync();
                     break;
                 }
-                catch
+                catch (Exception ex)
                 {
                     SetStatus("Aguardando o OBS...", false);
+                    if (ex.Message != _lastConnectError)
+                    {
+                        _lastConnectError = ex.Message;
+                        Log("Não conectou ao OBS: " + ex.Message);
+                    }
                 }
                 await Task.Delay(3000);
             }
@@ -287,8 +329,69 @@ public partial class MainWindow : Window
 
     // ---------- Teclas ----------
 
+    static bool IsModifier(ushort vk) =>
+        vk is 0x10 or 0x11 or 0x12 or 0x5B or 0x5C or (>= 0xA0 and <= 0xA5);
+
+    static string? ComboKeyName(ushort vk)
+    {
+        if (vk is >= 0x30 and <= 0x39 or >= 0x41 and <= 0x5A) return ((char)vk).ToString();
+        if (vk is >= 0x70 and <= 0x87) return "F" + (vk - 0x6F);
+        if (vk is >= 0x60 and <= 0x69) return "Num" + (vk - 0x60);
+        return vk switch
+        {
+            0x20 => "Space", 0x0D => "Enter", 0x1B => "Esc", 0x09 => "Tab", 0x08 => "Backspace",
+            0x2D => "Insert", 0x2E => "Delete", 0x24 => "Home", 0x23 => "End",
+            0x21 => "PageUp", 0x22 => "PageDown", 0x25 => "Left", 0x26 => "Up", 0x27 => "Right", 0x28 => "Down",
+            0x13 => "Pause", 0x2C => "PrintScreen",
+            _ => null
+        };
+    }
+
+    void BtnCaptureCombo_Click(object sender, RoutedEventArgs e)
+    {
+        _capturingCombo = true;
+        BtnCaptureCombo.Content = "Aperte a combinação agora...";
+    }
+
+    void HandleComboCapture(ushort vkey)
+    {
+        var name = ComboKeyName(vkey);
+        if (name == null)
+        {
+            Log("Essa tecla não pode ser usada em combinações. Tente outra.");
+            return;
+        }
+
+        bool Held(params ushort[] keys) => keys.Any(_heldMods.Contains);
+        var parts = new List<string>();
+        if (Held(0x11, 0xA2, 0xA3)) parts.Add("Ctrl");
+        if (Held(0x12, 0xA4, 0xA5)) parts.Add("Alt");
+        if (Held(0x10, 0xA0, 0xA1)) parts.Add("Shift");
+        if (Held(0x5B, 0x5C)) parts.Add("Win");
+        parts.Add(name);
+
+        TxtTarget.Text = string.Join("+", parts);
+        _capturingCombo = false;
+        BtnCaptureCombo.Content = "Capturar combinação (aperte as teclas)";
+    }
+
     void OnKeyPressed(ushort vkey, string deviceId)
     {
+        if (IsModifier(vkey)) _heldMods.Add(vkey);
+
+        if (_capturingMusic)
+        {
+            _capturingMusic = false;
+            SetMusicKey(vkey, ChkMusicOnlyDevice.IsChecked == true ? deviceId : "");
+            return;
+        }
+
+        if (_capturingCombo)
+        {
+            if (!IsModifier(vkey)) HandleComboCapture(vkey);
+            return;
+        }
+
         if (_capturing)
         {
             _capturing = false;
@@ -334,6 +437,9 @@ public partial class MainWindow : Window
                     break;
                 case ActionType.Hotkey:
                     await _obs.RequestAsync("TriggerHotkeyByName", new { hotkeyName = b.Target });
+                    break;
+                case ActionType.MusicToggle:
+                    if (!ToggleMusic()) return;
                     break;
                 case ActionType.KeyCombo:
                 case ActionType.Backtrack:
@@ -381,6 +487,10 @@ public partial class MainWindow : Window
         ListScenes.ItemsSource = hotkeys ? _hotkeyView : _scenes;
         ListScenes.IsEnabled = type is ActionType.Scene or ActionType.Hotkey;
         TxtFilter.Visibility = hotkeys ? Visibility.Visible : Visibility.Collapsed;
+        _capturingCombo = false;
+        BtnCaptureCombo.Content = "Capturar combinação (aperte as teclas)";
+        BtnCaptureCombo.Visibility = type is ActionType.Backtrack or ActionType.KeyCombo
+            ? Visibility.Visible : Visibility.Collapsed;
         TxtListLabel.Text = hotkeys
             ? "Atalhos do OBS (clique para usar)"
             : "Cenas do OBS (clique para usar)";
@@ -451,6 +561,271 @@ public partial class MainWindow : Window
             _bindings.Remove(b);
             SaveSettings();
         }
+    }
+
+    // ---------- Música da live ----------
+
+    // Spotify toca pelo aplicativo do computador (músicas inteiras); YouTube pelo player no OBS.
+    bool IsSpotifyMode =>
+        _settings.MusicEnabled
+        && MusicLinks.TryParse(_settings.MusicUrl, out var l, out _)
+        && l?.Kind == "sp";
+
+    bool ToggleMusic()
+    {
+        if (IsSpotifyMode)
+        {
+            if (!SpotifyDesktop.TogglePlayPause())
+            {
+                Log("O Spotify (aplicativo) não está aberto. Use Iniciar / aplicar na aba Música.");
+                return false;
+            }
+            _ = Task.Delay(1200).ContinueWith(_ => Dispatcher.InvokeAsync(UpdateMusicStatus));
+            return true;
+        }
+
+        if (!_musicReady)
+        {
+            Log("O servidor de música local não iniciou.");
+            return false;
+        }
+        if (_music.SecondsSinceBeat > 12)
+        {
+            Log("O player de música não está respondendo no OBS. Use Iniciar / aplicar na aba Música.");
+            return false;
+        }
+        _music.Command("toggle");
+        return true;
+    }
+
+    async Task EnsureMusicAsync()
+    {
+        if (!_settings.MusicEnabled || !_obs.IsConnected) return;
+
+        if (!MusicLinks.TryParse(_settings.MusicUrl, out var link, out var error) || link == null)
+        {
+            Log("Música: " + error);
+            return;
+        }
+
+        if (link.Kind == "sp")
+        {
+            try
+            {
+                await MusicObs.EnsureSpotifyAsync(_obs, Log);
+            }
+            catch (Exception ex)
+            {
+                Log("Erro ao criar a captura do Spotify no OBS: " + ex.Message);
+            }
+            return;
+        }
+
+        if (!_musicReady) return;
+        try
+        {
+            var url = _music.BuildPlayerUrl(link, _settings.MusicLoop, _settings.MusicShuffle);
+            await MusicObs.EnsureAsync(_obs, url, Log);
+        }
+        catch (Exception ex)
+        {
+            Log("Erro na música: " + ex.Message);
+            return;
+        }
+
+        _ = ReloadPlayerIfSilentAsync();
+    }
+
+    // Se o OBS foi aberto com o NTOobs fechado, a página do player não carregou: recarrega.
+    async Task ReloadPlayerIfSilentAsync()
+    {
+        await Task.Delay(9000);
+        if (!_settings.MusicEnabled || IsSpotifyMode || !_obs.IsConnected || _music.SecondsSinceBeat <= 12) return;
+        try
+        {
+            await MusicObs.RefreshAsync(_obs);
+            Log("O player de música não respondeu. Recarreguei a fonte no OBS.");
+        }
+        catch (Exception ex)
+        {
+            Log("Erro ao recarregar a música: " + ex.Message);
+        }
+    }
+
+    // Abre a playlist no aplicativo Spotify e confere se começou a tocar.
+    async Task LaunchSpotifyAsync(MusicLink link)
+    {
+        try
+        {
+            SpotifyDesktop.Open(link);
+            Log("Abrindo a playlist no aplicativo Spotify...");
+        }
+        catch (Exception ex)
+        {
+            Log("Não consegui abrir o Spotify. Ele está instalado? " + ex.Message);
+            return;
+        }
+
+        for (int i = 0; i < 8; i++)
+        {
+            await Task.Delay(1000);
+            if (SpotifyDesktop.GetState().Playing)
+            {
+                Log("Spotify tocando: " + SpotifyDesktop.GetState().Track);
+                UpdateMusicStatus();
+                return;
+            }
+        }
+
+        var st = SpotifyDesktop.GetState();
+        Log(st.Running
+            ? "A playlist abriu no Spotify. Clique no play verde dela uma vez; depois o seu atalho pausa e retoma."
+            : "O Spotify não abriu. Abra o aplicativo, entre na sua conta e clique em Iniciar / aplicar de novo.");
+        UpdateMusicStatus();
+    }
+
+    void UpdateMusicStatus()
+    {
+        string text;
+        if (!_settings.MusicEnabled)
+        {
+            text = "Música desligada.";
+        }
+        else if (IsSpotifyMode)
+        {
+            var st = SpotifyDesktop.GetState();
+            text = !st.Running ? "Spotify (aplicativo) não está aberto."
+                 : st.Playing ? "Tocando  ·  " + st.Track
+                 : "Pausado (Spotify aberto)";
+        }
+        else if (!_musicReady)
+        {
+            text = "Não consegui iniciar o servidor de música local (porta ocupada?).";
+        }
+        else if (_music.SecondsSinceBeat > 12)
+        {
+            text = "Aguardando o player no OBS...";
+        }
+        else
+        {
+            var st = _music.State;
+            if (st.Length > 0) st = char.ToUpperInvariant(st[0]) + st[1..];
+            text = st.Length == 0 ? "Player ativo" : st;
+            if (st.StartsWith("Erro"))
+                text += ": o YouTube não permite tocar esse vídeo/playlist incorporado, ou o link não é aceito.";
+            if (_music.Title.Length > 0) text += "  ·  " + _music.Title;
+        }
+        TxtMusicStatus.Text = text;
+    }
+
+    void SldVolume_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_musicLoaded) return;
+        TxtVolValue.Text = $"{(int)e.NewValue}%";
+        _music.SetVolume((int)e.NewValue);
+    }
+
+    void SldVolume_Done(object sender, MouseEventArgs e)
+    {
+        _settings.MusicVolume = (int)SldVolume.Value;
+        SaveSettings();
+    }
+
+    async void BtnMusicStart_Click(object sender, RoutedEventArgs e)
+    {
+        if (!MusicLinks.TryParse(TxtMusicUrl.Text, out var link, out var error) || link == null)
+        {
+            MessageBox.Show(this, error, "NTOobs");
+            return;
+        }
+        bool spotify = link.Kind == "sp";
+        if (!spotify && !_musicReady)
+        {
+            MessageBox.Show(this, "O servidor de música local não iniciou. Feche outros programas e abra o NTOobs de novo.", "NTOobs");
+            return;
+        }
+        if (!_obs.IsConnected)
+        {
+            MessageBox.Show(this, "Conecte ao OBS primeiro (aba Conexão).", "NTOobs");
+            return;
+        }
+
+        _settings.MusicUrl = TxtMusicUrl.Text.Trim();
+        _settings.MusicLoop = ChkMusicLoop.IsChecked == true;
+        _settings.MusicShuffle = ChkMusicShuffle.IsChecked == true;
+        _settings.MusicVolume = (int)SldVolume.Value;
+        _settings.MusicEnabled = true;
+        SaveSettings();
+
+        // só uma fonte de música por vez no OBS
+        await MusicObs.RemoveAsync(_obs, spotify ? MusicObs.InputName : MusicObs.SpotifyInputName);
+
+        await EnsureMusicAsync();
+        UpdateMusicStatus();
+
+        if (spotify) await LaunchSpotifyAsync(link);
+    }
+
+    void BtnMusicToggle_Click(object sender, RoutedEventArgs e) => ToggleMusic();
+
+    void BtnMusicKey_Click(object sender, RoutedEventArgs e)
+    {
+        _capturingMusic = true;
+        BtnMusicKey.Content = "Aperte a tecla agora...";
+    }
+
+    void SetMusicKey(ushort vkey, string deviceId)
+    {
+        foreach (var old in _bindings.Where(b => b.Action == ActionType.MusicToggle).ToList())
+            _bindings.Remove(old);
+
+        var binding = new DeckBinding { VKey = vkey, DeviceId = deviceId, Action = ActionType.MusicToggle };
+        _bindings.Add(binding);
+        SaveSettings();
+        BtnMusicKey.Content = "Definir tecla";
+        Log($"Tecla de pausar/retomar a música: {binding.KeyName} ({binding.DeviceLabel}).");
+    }
+
+    void BtnMusicKeyClear_Click(object sender, RoutedEventArgs e)
+    {
+        _capturingMusic = false;
+        BtnMusicKey.Content = "Definir tecla";
+        foreach (var old in _bindings.Where(b => b.Action == ActionType.MusicToggle).ToList())
+            _bindings.Remove(old);
+        SaveSettings();
+    }
+
+    void RefreshMusicKeyLabel()
+    {
+        var b = _bindings.FirstOrDefault(x => x.Action == ActionType.MusicToggle);
+        if (b == null)
+        {
+            TxtMusicKey.Text = "Nenhuma tecla definida";
+            TxtMusicKey.SetResourceReference(TextBlock.ForegroundProperty, "Muted");
+        }
+        else
+        {
+            TxtMusicKey.Text = $"{b.KeyName}  ·  {b.DeviceLabel}";
+            TxtMusicKey.SetResourceReference(TextBlock.ForegroundProperty, "Text");
+        }
+    }
+
+    async void BtnMusicStop_Click(object sender, RoutedEventArgs e)
+    {
+        bool wasSpotify = IsSpotifyMode;
+        _settings.MusicEnabled = false;
+        SaveSettings();
+
+        if (wasSpotify && SpotifyDesktop.GetState().Playing)
+            SpotifyDesktop.TogglePlayPause();
+
+        if (_obs.IsConnected)
+        {
+            await MusicObs.RemoveAsync(_obs, MusicObs.InputName);
+            await MusicObs.RemoveAsync(_obs, MusicObs.SpotifyInputName);
+            Log("Música removida do OBS.");
+        }
+        UpdateMusicStatus();
     }
 
     // ---------- Registro ----------

@@ -63,6 +63,9 @@ public sealed class RawInputListener
     /// <summary>(vkey, deviceId) — disparado uma vez por pressionamento (ignora auto-repeat).</summary>
     public event Action<ushort, string>? KeyPressed;
 
+    /// <summary>(vkey, deviceId) — disparado quando a tecla é solta.</summary>
+    public event Action<ushort, string>? KeyReleased;
+
     public void Attach(Window window)
     {
         var hwnd = new WindowInteropHelper(window).Handle;
@@ -109,6 +112,7 @@ public sealed class RawInputListener
             if (isBreak)
             {
                 _down.Remove(key);
+                KeyReleased?.Invoke(kb.VKey, GetDeviceId(header.Device));
                 return;
             }
             if (!_down.Add(key)) return; // auto-repeat
