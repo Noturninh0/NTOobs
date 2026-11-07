@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Compilar NTOobs.exe
+        run: dotnet publish NTOobs/NTOobs.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist
+
+      - name: Instalar Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Gerar instalador
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\NTOobs.iss'
+
+      - name: Guardar arquivos da execução
+        uses: actions/upload-artifact@v4
+        with:
+          name: NTOobs
+          path: |
+            installer/Output/NTOobs-Setup.exe
+            dist/NTOobs.exe
+
+      - name: Publicar Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            installer/Output/NTOobs-Setup.exe
+            dist/NTOobs.exe
+          generate_release_notes: true
