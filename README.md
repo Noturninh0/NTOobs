@@ -52,7 +52,12 @@ Na aba **Atalhos** (ícone de teclado), no cartão **Novo atalho**:
    - **Salvar Backtrack** (clipe dos últimos segundos, do plugin de backtrack/vertical)
    - **Executar um atalho do OBS (lista)**: qualquer atalho que o OBS conhece, inclusive os de plugins
    - **Simular combinação de teclas no OBS**: aperta uma combinação como `Ctrl+Alt+F9` dentro do OBS
-4. Para cena ou áudio, informe o **destino**: clique em um nome da lista de cenas do OBS (use **Atualizar** se criou cenas novas) ou digite o nome exato.
+   - **Alternar cena**: vai para a cena (ex.: Volto já) e, apertando de novo, volta para a anterior
+   - **Voltar para a cena anterior**
+   - **Começar live**, **Marcar momento** e **Replay instantâneo** (veja Ferramentas)
+   - **Tocar som do soundboard**, **Executar macro** e **Contador** (somar, diminuir, zerar)
+   - **Pausar / retomar a música live**
+4. Informe o **destino** quando a ação pedir: clique em um nome da lista ao lado (cenas, fontes de áudio, atalhos do OBS, macros, sons ou contadores; use **Atualizar** se criou algo novo no OBS) ou digite o nome exato.
 5. Clique em **Adicionar atalho**.
 
 ### Backtrack e plugins do OBS
@@ -100,6 +105,62 @@ Com link do Spotify, o NTOobs usa o **aplicativo Spotify do computador**, e não
 
 Cuidado com direitos autorais: músicas protegidas podem silenciar ou derrubar suas transmissões e VODs.
 
+## Perfis por jogo
+
+Na aba **Atalhos**, o cartão **Perfis** guarda um conjunto de teclas para cada jogo.
+
+- Digite um nome e clique em **Novo perfil**. Clique em um perfil da lista para ativá-lo: as teclas da aba Atalhos são sempre as do perfil ativo.
+- Para a troca automática: abra o jogo, volte ao NTOobs, clique em **Escolher programa aberto** e escolha o jogo. Com **Trocar de perfil sozinho** marcado, quando o jogo ficar na frente, o NTOobs ativa o perfil dele.
+- A tecla de pausar a música é copiada para cada perfil novo.
+
+## Macros
+
+Na aba **Macros**, uma tecla faz várias ações em sequência, com espera entre elas se quiser.
+
+- Crie a macro, escolha uma ação na lista, o destino e clique em **Adicionar passo**. Use as setas para mudar a ordem.
+- **Criar exemplo Volto já** monta uma macro pronta: Alternar cena (Volto já) + mutar o microfone + pausar a música. Apertando de novo, tudo volta. Confira os nomes da cena e do microfone.
+- Clique em **Definir tecla** para escolher a tecla da macro (no perfil ativo).
+
+## Soundboard
+
+Na aba **Soundboard**, clique em **Adicionar sons...** e escolha arquivos mp3, wav, ogg ou m4a (eles são copiados para a pasta do NTOobs). Em cada som: **Tocar**, **Tecla** e o volume.
+
+O som sai na live pela fonte **NTOobs Soundboard**, criada sozinha em todas as cenas. Para ouvir no seu fone também, marque o monitoramento. Se o som sair duplicado na live, desmarque (o Áudio do Desktop pode estar capturando o fone).
+
+## Ferramentas
+
+Na aba **Ferramentas** (ícone de chave):
+
+- **Estilo dos textos na live**: escolha o tipo de letra (as fontes instaladas no PC, com busca), o tamanho, a cor (cores prontas ou código como `#F5A524`), negrito e contorno, com prévia. Vale para os contadores e para a contagem do Começar live (que fica 1,5x maior). Os alertas da Twitch usam o mesmo tipo de letra. **Aplicar nos textos do OBS** atualiza os textos que já existem.
+- **Contadores na tela**: crie contadores (mortes, vitórias...) e use as ações de contador na aba Atalhos. **Mostrar na live** cria um texto no OBS que atualiza sozinho. No formato, `{nome}` vira o nome e `{n}` o número.
+- **Marcar momento**: salva o horário da live e da gravação num arquivo do dia em `Documentos\NTOobs\Marcadores`, para achar os melhores momentos e cortar depois.
+- **Replay instantâneo**: salva o Replay Buffer do OBS, mostra o vídeo em tela cheia numa cena só dele e volta para a cena anterior. Ative antes no OBS: Configurações, Saída, Replay Buffer.
+- **Começar live**: confere se o microfone está mutado e se as cenas existem, inicia a transmissão (e a gravação, se marcado), mostra "Começando em 5:00" na cena de início e troca para a cena principal no fim. **Pular contagem** vai direto.
+- **Saúde da live**: o Painel mostra tempo no ar, bitrate, quadros perdidos, CPU e FPS. Se a internet ou o PC começarem a falhar, aparece um aviso (com som, se marcado).
+
+## Twitch
+
+Na aba **Twitch**:
+
+- Só com o **nome do canal**, o NTOobs lê o chat e recebe os alertas de **sub, raid e bits**.
+- **Alertas na tela**: escolha um dos 6 modelos prontos (Clássico, Neon, Minimalista, Faixa, Pop e Conquista), a posição (topo, centro ou embaixo) e o tempo na tela.
+- Em cada tipo de alerta (follow, sub, raid, bits) dá para colocar **a sua própria imagem, GIF ou vídeo** (png, jpg, gif, webp, mp4, webm, até 50 MB) e **o seu próprio som**. Sem som próprio, toca o som padrão. Vídeos tocam até o fim (no máximo 15 segundos).
+- **Ver prévia no navegador** mostra os alertas passando em sequência. **Adicionar alertas no OBS** cria a fonte **NTOobs Alertas** em todas as cenas. Os alertas só aparecem com o NTOobs aberto.
+- **Comandos do chat**: `!musica` responde a música que está tocando, `!marcar` (você e moderadores) marca o momento, e você pode criar comandos seus, como `!discord`. Use `{user}` para chamar a pessoa pelo nome.
+- Para **responder no chat** e mostrar **follows**, entre com a Twitch (uma vez só):
+  1. Clique em **Abrir o console da Twitch** e registre um aplicativo.
+  2. Em URLs de redirecionamento OAuth, cole o endereço mostrado no NTOobs (botão **Copiar**).
+  3. Categoria: Chat Bot. Tipo de cliente: Público.
+  4. Copie o ID do cliente, cole no NTOobs e clique em **Entrar com a Twitch**.
+
+## Controle pelo celular
+
+Na aba **Celular**, marque **Ativar controle pelo celular** e abra o endereço mostrado no navegador do celular (no mesmo Wi-Fi). Aparecem botões grandes com os atalhos do perfil ativo, macros, sons, contadores e os controles da live.
+
+- Na primeira vez, o Windows pergunta se o NTOobs pode usar a rede: marque **Redes privadas** e clique em **Permitir**.
+- O código no endereço impede que outras pessoas da rede controlem a sua live. Se alguém descobrir, clique em **Gerar novo código**.
+- Dica: no navegador do celular, use **Adicionar à tela inicial** para abrir como um app.
+
 ## Dicas
 
 - Use as teclas **F13 a F24** ou um teclado/macropad extra para os atalhos. O NTOobs apenas observa as teclas, então uma tecla comum (como `A`) também continua digitando no programa em foco.
@@ -119,7 +180,7 @@ Cuidado com direitos autorais: músicas protegidas podem silenciar ou derrubar s
 
 - A ação de simular combinação aceita letras, números, F1 a F24, teclas do teclado numérico (`Num0` a `Num9`) e teclas como `Space`, `Enter`, `Esc`, `Tab`, setas, `Home`, `End`, `PageUp` e `PageDown`, com `Ctrl`, `Alt`, `Shift` e `Win`.
 - Dois teclados do mesmo modelo (mesmo fabricante e produto) não são diferenciados entre si.
-- A senha do OBS fica salva em texto simples no `config.json`.
+- A senha do OBS e o login da Twitch ficam salvos em texto simples no `config.json`.
 - O programa não é assinado digitalmente (veja o aviso do Windows acima).
 
 ## Para desenvolvedores

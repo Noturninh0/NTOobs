@@ -113,26 +113,38 @@ public sealed class MusicServer : IDisposable
 
     public event Action? Changed;
 
+    /// <summary>Outras partes do app (alertas, login da Twitch) respondem por aqui. true = tratado.</summary>
+    public Func<HttpListenerContext, bool>? ExtraHandler { get; set; }
+
+    /// <summary>true = também responde em localhost (necessário para o login da Twitch).</summary>
+    public bool LocalhostOk { get; private set; }
+
     public bool Start(int firstPort)
     {
         for (int p = firstPort; p < firstPort + 10; p++)
         {
-            var listener = new HttpListener();
-            listener.Prefixes.Add($"http://127.0.0.1:{p}/");
-            try
+            // tenta com localhost (login da Twitch); se o Windows recusar, só 127.0.0.1
+            foreach (var withLocalhost in new[] { true, false })
             {
-                listener.Start();
-            }
-            catch (HttpListenerException)
-            {
-                listener.Close();
-                continue;
-            }
+                var listener = new HttpListener();
+                listener.Prefixes.Add($"http://127.0.0.1:{p}/");
+                if (withLocalhost) listener.Prefixes.Add($"http://localhost:{p}/");
+                try
+                {
+                    listener.Start();
+                }
+                catch (HttpListenerException)
+                {
+                    listener.Close();
+                    continue;
+                }
 
-            _listener = listener;
-            Port = p;
-            _ = Task.Run(() => LoopAsync(listener));
-            return true;
+                _listener = listener;
+                Port = p;
+                LocalhostOk = withLocalhost;
+                _ = Task.Run(() => LoopAsync(listener));
+                return true;
+            }
         }
         return false;
     }
@@ -202,6 +214,7 @@ public sealed class MusicServer : IDisposable
                     break;
 
                 default:
+                    if (ExtraHandler?.Invoke(ctx) == true) break;
                     ctx.Response.StatusCode = 404;
                     ctx.Response.Close();
                     break;
@@ -213,7 +226,7 @@ public sealed class MusicServer : IDisposable
         }
     }
 
-    static void Write(HttpListenerContext ctx, string contentType, string text)
+    public static void Write(HttpListenerContext ctx, string contentType, string text)
     {
         var bytes = Encoding.UTF8.GetBytes(text);
         ctx.Response.ContentType = contentType;
@@ -377,7 +390,7 @@ public static class MusicObs
     public const string InputName = "NTOobs Música";
     public const string SpotifyInputName = "NTOobs Spotify";
 
-    static async Task<(List<string> Scenes, string Current)> GetScenesAsync(ObsClient obs)
+    public static async Task<(List<string> Scenes, string Current)> GetScenesAsync(ObsClient obs)
     {
         var list = await obs.RequestAsync("GetSceneList");
         var scenes = list.GetProperty("scenes").EnumerateArray()
@@ -393,7 +406,7 @@ public static class MusicObs
         return (scenes, current);
     }
 
-    static async Task<bool> InputExistsAsync(ObsClient obs, string name)
+    public static async Task<bool> InputExistsAsync(ObsClient obs, string name)
     {
         try
         {
@@ -486,7 +499,7 @@ public static class MusicObs
     }
 
     // A fonte precisa estar em todas as cenas para o áudio não cortar ao trocar de cena.
-    static async Task EnsureInAllScenesAsync(ObsClient obs, string name, List<string> scenes, bool offCanvas, Action<string> log)
+    public static async Task EnsureInAllScenesAsync(ObsClient obs, string name, List<string> scenes, bool offCanvas, Action<string> log)
     {
         foreach (var scene in scenes)
         {
@@ -499,11 +512,11 @@ public static class MusicObs
             });
             if (offCanvas)
                 await MoveOffCanvasAsync(obs, scene, item.GetProperty("sceneItemId").GetInt32(), log);
-            log($"Música adicionada à cena \"{scene}\".");
+            log($"\"{name}\" adicionada à cena \"{scene}\".");
         }
     }
 
-    static async Task UnmuteAsync(ObsClient obs, string name)
+    public static async Task UnmuteAsync(ObsClient obs, string name)
     {
         try { await obs.RequestAsync("SetInputMute", new { inputName = name, inputMuted = false }); }
         catch { }

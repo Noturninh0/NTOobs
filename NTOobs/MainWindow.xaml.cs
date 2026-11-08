@@ -37,6 +37,15 @@ public partial class MainWindow : Window
     readonly ObservableCollection<string> _scenes = new();
     readonly ObservableCollection<string> _hotkeyView = new();
     readonly List<string> _allHotkeys = new();
+    readonly List<string> _inputs = new();
+
+    // cenas: para "Alternar cena" e "Voltar para a cena anterior"
+    string _currentScene = "";
+    string _previousScene = "";
+    string? _sceneBeforeToggle;
+
+    // captura de tecla usada pelas outras abas (macros, sons)
+    Action<ushort, string>? _captureCallback;
 
     ActionType _action = ActionType.Scene;
     bool _capturing;
@@ -66,7 +75,8 @@ public partial class MainWindow : Window
         ChkAuto.IsChecked = _settings.AutoConnect;
         BtnTheme.Content = _settings.DarkTheme ? "" : "";
 
-        foreach (var b in _settings.Bindings) _bindings.Add(b);
+        MigrateProfiles();
+        foreach (var b in ActiveProfileObj.Bindings) _bindings.Add(b);
         _bindings.CollectionChanged += (_, _) => RefreshLists();
         PanelList.ItemsSource = _bindings;
         ListBindings.ItemsSource = _bindings;
@@ -89,8 +99,16 @@ public partial class MainWindow : Window
         _musicLoaded = true;
         UpdateMusicStatus();
 
-        RbScene.IsChecked = true;
+        BuildActionChoices();
+        InitFeatures();
         NavPanel.IsChecked = true;
+
+        _obs.EventReceived += (type, data) =>
+        {
+            if (type != "CurrentProgramSceneChanged") return;
+            var name = ObsTools.GetString(data, "sceneName");
+            Dispatcher.InvokeAsync(() => OnSceneChanged(name));
+        };
 
         _obs.Disconnected += () => Dispatcher.Invoke(() =>
         {
@@ -124,13 +142,14 @@ public partial class MainWindow : Window
             }
         };
 
-        PreviewKeyDown += (_, e) => { if (_capturing || _capturingCombo || _capturingMusic) e.Handled = true; };
+        PreviewKeyDown += (_, e) => { if (_capturing || _capturingCombo || _capturingMusic || _captureCallback != null) e.Handled = true; };
         Closing += (_, _) =>
         {
             _settings.MusicVolume = (int)SldVolume.Value;
             SaveSettings();
             _obs.Dispose();
             _music.Dispose(); // a música já carregada continua tocando no OBS
+            ShutdownFeatures();
         };
     }
 
@@ -164,11 +183,14 @@ public partial class MainWindow : Window
     void Nav_Checked(object sender, RoutedEventArgs e)
     {
         if (sender is not RadioButton rb || !int.TryParse(rb.Tag?.ToString(), out var page)) return;
-        PagePanel.Visibility = page == 0 ? Visibility.Visible : Visibility.Collapsed;
-        PageShortcuts.Visibility = page == 1 ? Visibility.Visible : Visibility.Collapsed;
-        PageConnection.Visibility = page == 2 ? Visibility.Visible : Visibility.Collapsed;
-        PageMusic.Visibility = page == 4 ? Visibility.Visible : Visibility.Collapsed;
-        PageLog.Visibility = page == 3 ? Visibility.Visible : Visibility.Collapsed;
+        FrameworkElement?[] pages =
+        {
+            PagePanel, PageShortcuts, PageConnection, PageLog, PageMusic,
+            PageMacros, PageSounds, PageTools, PageTwitch, PagePhone
+        };
+        for (int i = 0; i < pages.Length; i++)
+            if (pages[i] != null) pages[i]!.Visibility = i == page ? Visibility.Visible : Visibility.Collapsed;
+        OnPageShown(page);
     }
 
     void RefreshLists()
@@ -177,6 +199,7 @@ public partial class MainWindow : Window
         TxtEmptyPanel.Visibility = empty;
         TxtEmptyList.Visibility = empty;
         TxtFiredTotal.Text = _bindings.Sum(b => b.Fired).ToString();
+        TxtProfilePanel.Text = $"Atalhos do perfil {ActiveProfileObj.Name}";
         RefreshMusicKeyLabel();
     }
 
@@ -214,10 +237,16 @@ public partial class MainWindow : Window
         await _obs.ConnectAsync(TxtHost.Text.Trim(), port, PwdBox.Password);
         SetStatus("Conectado", true);
         SaveSettings();
+        ObsTools.ResetCache();
+        _soundboard.Reset();
+        _health.Reset();
         await RefreshScenesAsync();
         await RefreshHotkeysAsync();
+        await RefreshInputsAsync();
+        try { _currentScene = await ObsTools.GetCurrentSceneAsync(_obs); } catch { }
         _lastConnectError = null;
         await EnsureMusicAsync();
+        await PushAllCountersAsync();
     }
 
     async Task ReconnectLoopAsync()
@@ -311,10 +340,46 @@ public partial class MainWindow : Window
 
     void TxtFilter_TextChanged(object sender, TextChangedEventArgs e) => ApplyHotkeyFilter();
 
+    async Task RefreshInputsAsync()
+    {
+        try
+        {
+            var list = await ObsTools.GetInputNamesAsync(_obs);
+            _inputs.Clear();
+            _inputs.AddRange(list);
+        }
+        catch (Exception ex)
+        {
+            Log("Erro ao listar fontes: " + ex.Message);
+        }
+    }
+
+    void OnSceneChanged(string name)
+    {
+        if (name.Length == 0 || name == _currentScene) return;
+        _previousScene = _currentScene;
+        _currentScene = name;
+    }
+
+    /// <summary>Itens que ajudam a escolher o destino de uma ação.</summary>
+    List<string> SuggestionsFor(TargetList list) => list switch
+    {
+        TargetList.Scenes => _scenes.ToList(),
+        TargetList.Inputs => _inputs.ToList(),
+        TargetList.Hotkeys => _allHotkeys.ToList(),
+        TargetList.Macros => _settings.Macros.Select(m => m.Name).ToList(),
+        TargetList.Sounds => _settings.Sounds.Select(x => x.Name).ToList(),
+        TargetList.Counters => _settings.Counters.Select(c => c.Name).ToList(),
+        _ => new List<string>()
+    };
+
     async void BtnRefresh_Click(object sender, RoutedEventArgs e)
     {
         await RefreshScenesAsync();
         await RefreshHotkeysAsync();
+        await RefreshInputsAsync();
+        var opt = Actions.Get(_action);
+        if (opt.List != TargetList.Hotkeys) ListScenes.ItemsSource = SuggestionsFor(opt.List);
     }
 
     void SaveSettings()
@@ -323,7 +388,8 @@ public partial class MainWindow : Window
         _settings.Port = int.TryParse(TxtPort.Text, out var p) && p > 0 ? p : 4455;
         _settings.Password = PwdBox.Password;
         _settings.AutoConnect = ChkAuto.IsChecked == true;
-        _settings.Bindings = _bindings.ToList();
+        ActiveProfileObj.Bindings = _bindings.ToList();
+        _settings.Bindings = new();
         ConfigStore.Save(_settings);
     }
 
@@ -379,6 +445,22 @@ public partial class MainWindow : Window
     {
         if (IsModifier(vkey)) _heldMods.Add(vkey);
 
+        if (_captureCallback != null)
+        {
+            if (IsModifier(vkey)) return;
+            var cb = _captureCallback;
+            _captureCallback = null;
+            if (vkey == 0x1B) // Esc cancela
+            {
+                Log("Captura de tecla cancelada.");
+                RefreshCaptureLabels();
+                return;
+            }
+            cb(vkey, deviceId);
+            RefreshCaptureLabels();
+            return;
+        }
+
         if (_capturingMusic)
         {
             _capturingMusic = false;
@@ -421,46 +503,117 @@ public partial class MainWindow : Window
     {
         try
         {
-            switch (b.Action)
-            {
-                case ActionType.Scene:
-                    await _obs.RequestAsync("SetCurrentProgramScene", new { sceneName = b.Target });
-                    break;
-                case ActionType.ToggleMute:
-                    await _obs.RequestAsync("ToggleInputMute", new { inputName = b.Target });
-                    break;
-                case ActionType.ToggleRecord:
-                    await _obs.RequestAsync("ToggleRecord");
-                    break;
-                case ActionType.ToggleStream:
-                    await _obs.RequestAsync("ToggleStream");
-                    break;
-                case ActionType.Hotkey:
-                    await _obs.RequestAsync("TriggerHotkeyByName", new { hotkeyName = b.Target });
-                    break;
-                case ActionType.MusicToggle:
-                    if (!ToggleMusic()) return;
-                    break;
-                case ActionType.KeyCombo:
-                case ActionType.Backtrack:
-                {
-                    var (keyId, m) = ObsKeys.Parse(b.Target);
-                    await _obs.RequestAsync("TriggerHotkeyByKeySequence", new
-                    {
-                        keyId,
-                        keyModifiers = new { shift = m.Shift, control = m.Control, alt = m.Alt, command = m.Command }
-                    });
-                    break;
-                }
-            }
+            if (!await RunActionAsync(b.Action, b.Target)) return;
             b.Fired++;
             RefreshLists();
-            Log($"{b.KeyName} -> {b.ActionLabel} {b.Target}".TrimEnd());
+            Log($"{b.KeyName} -> {Actions.Describe(b.Action, b.Target)}");
         }
         catch (Exception ex)
         {
             Log("Erro: " + ex.Message);
         }
+    }
+
+    /// <summary>Executa uma ação. false = não executou (o motivo já foi para o Registro).</summary>
+    async Task<bool> RunActionAsync(ActionType action, string target, int depth = 0)
+    {
+        switch (action)
+        {
+            case ActionType.Scene:
+                await _obs.RequestAsync("SetCurrentProgramScene", new { sceneName = target });
+                break;
+
+            case ActionType.SceneToggle:
+            {
+                var current = await ObsTools.GetCurrentSceneAsync(_obs);
+                if (current == target)
+                {
+                    var back = _sceneBeforeToggle ?? _previousScene;
+                    if (string.IsNullOrEmpty(back) || back == target)
+                    {
+                        Log("Não sei para qual cena voltar. Troque de cena uma vez e tente de novo.");
+                        return false;
+                    }
+                    await _obs.RequestAsync("SetCurrentProgramScene", new { sceneName = back });
+                    _sceneBeforeToggle = null;
+                }
+                else
+                {
+                    _sceneBeforeToggle = current;
+                    await _obs.RequestAsync("SetCurrentProgramScene", new { sceneName = target });
+                }
+                break;
+            }
+
+            case ActionType.PreviousScene:
+                if (string.IsNullOrEmpty(_previousScene))
+                {
+                    Log("Ainda não há uma cena anterior.");
+                    return false;
+                }
+                await _obs.RequestAsync("SetCurrentProgramScene", new { sceneName = _previousScene });
+                break;
+
+            case ActionType.ToggleMute:
+                await _obs.RequestAsync("ToggleInputMute", new { inputName = target });
+                break;
+            case ActionType.ToggleRecord:
+                await _obs.RequestAsync("ToggleRecord");
+                break;
+            case ActionType.ToggleStream:
+                await _obs.RequestAsync("ToggleStream");
+                break;
+            case ActionType.Hotkey:
+                await _obs.RequestAsync("TriggerHotkeyByName", new { hotkeyName = target });
+                break;
+            case ActionType.MusicToggle:
+                if (!ToggleMusic()) return false;
+                break;
+            case ActionType.KeyCombo:
+            case ActionType.Backtrack:
+            {
+                var (keyId, m) = ObsKeys.Parse(target);
+                await _obs.RequestAsync("TriggerHotkeyByKeySequence", new
+                {
+                    keyId,
+                    keyModifiers = new { shift = m.Shift, control = m.Control, alt = m.Alt, command = m.Command }
+                });
+                break;
+            }
+
+            case ActionType.Macro:
+                await RunMacroAsync(target, depth);
+                break;
+            case ActionType.Sound:
+                await PlaySoundAsync(target);
+                break;
+            case ActionType.CounterAdd:
+                await ChangeCounterAsync(target, 1, false);
+                break;
+            case ActionType.CounterSub:
+                await ChangeCounterAsync(target, -1, false);
+                break;
+            case ActionType.CounterReset:
+                await ChangeCounterAsync(target, 0, true);
+                break;
+            case ActionType.Marker:
+                await AddMarkerAsync("");
+                break;
+            case ActionType.InstantReplay:
+                RequireObs();
+                _ = RunReplayAsync();
+                break;
+            case ActionType.GoLive:
+                RequireObs();
+                _ = GoLiveAsync(false);
+                break;
+        }
+        return true;
+    }
+
+    void RequireObs()
+    {
+        if (!_obs.IsConnected) throw new InvalidOperationException("Não conectado ao OBS.");
     }
 
     // ---------- Editor de atalhos ----------
@@ -473,6 +626,26 @@ public partial class MainWindow : Window
         BtnCapture.Content = "Aguardando tecla...";
     }
 
+    void BuildActionChoices()
+    {
+        ActionChoices.Children.Clear();
+        RadioButton? first = null;
+        foreach (var opt in Actions.All)
+        {
+            var rb = new RadioButton
+            {
+                Content = opt.Label,
+                Tag = opt.Type.ToString(),
+                GroupName = "ActionChoice",
+                Style = (Style)FindResource("ChoiceRadio")
+            };
+            rb.Checked += Action_Changed;
+            ActionChoices.Children.Add(rb);
+            first ??= rb;
+        }
+        if (first != null) first.IsChecked = true;
+    }
+
     void Action_Changed(object sender, RoutedEventArgs e)
     {
         if (sender is not RadioButton rb || !Enum.TryParse<ActionType>(rb.Tag?.ToString(), out var type)) return;
@@ -482,18 +655,25 @@ public partial class MainWindow : Window
         TxtTarget.IsEnabled = opt.NeedsTarget;
         TxtTarget.Text = opt.DefaultTarget;
 
-        // a lista ao lado mostra cenas ou os atalhos do OBS, conforme a ação
-        bool hotkeys = type == ActionType.Hotkey;
-        ListScenes.ItemsSource = hotkeys ? _hotkeyView : _scenes;
-        ListScenes.IsEnabled = type is ActionType.Scene or ActionType.Hotkey;
+        // a lista ao lado ajuda a escolher o destino, conforme a ação
+        bool hotkeys = opt.List == TargetList.Hotkeys;
+        ListScenes.ItemsSource = hotkeys ? _hotkeyView : SuggestionsFor(opt.List);
+        ListScenes.IsEnabled = opt.List != TargetList.None;
         TxtFilter.Visibility = hotkeys ? Visibility.Visible : Visibility.Collapsed;
         _capturingCombo = false;
         BtnCaptureCombo.Content = "Capturar combinação (aperte as teclas)";
         BtnCaptureCombo.Visibility = type is ActionType.Backtrack or ActionType.KeyCombo
             ? Visibility.Visible : Visibility.Collapsed;
-        TxtListLabel.Text = hotkeys
-            ? "Atalhos do OBS (clique para usar)"
-            : "Cenas do OBS (clique para usar)";
+        TxtListLabel.Text = opt.List switch
+        {
+            TargetList.Hotkeys => "Atalhos do OBS (clique para usar)",
+            TargetList.Inputs => "Fontes do OBS (clique para usar)",
+            TargetList.Macros => "Suas macros (clique para usar)",
+            TargetList.Sounds => "Sons do soundboard (clique para usar)",
+            TargetList.Counters => "Seus contadores (clique para usar)",
+            TargetList.Scenes => "Cenas do OBS (clique para usar)",
+            _ => "Esta ação não usa a lista"
+        };
     }
 
     void ListScenes_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -513,7 +693,7 @@ public partial class MainWindow : Window
         var target = TxtTarget.Text.Trim();
         if (opt.NeedsTarget && target.Length == 0)
         {
-            MessageBox.Show(this, "Informe o destino (nome da cena ou da fonte).", "NTOobs");
+            MessageBox.Show(this, "Informe o destino (use a lista abaixo para escolher).", "NTOobs");
             return;
         }
 

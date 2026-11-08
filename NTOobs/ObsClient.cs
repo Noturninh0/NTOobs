@@ -21,6 +21,11 @@ public sealed class ObsClient : IDisposable
     /// <summary>Disparado quando uma conexão que estava funcionando cai.</summary>
     public event Action? Disconnected;
 
+    /// <summary>Eventos do OBS (tipo, dados). Só a categoria Cenas é assinada.</summary>
+    public event Action<string, JsonElement>? EventReceived;
+
+    const int EventMask = 1 << 2; // Scenes
+
     public bool IsConnected =>
         _ws?.State == WebSocketState.Open && _identified.Task.IsCompletedSuccessfully;
 
@@ -183,12 +188,12 @@ public sealed class ObsClient : IDisposable
                     identify = new
                     {
                         op = 1,
-                        d = new { rpcVersion = 1, authentication = BuildAuth(salt, challenge), eventSubscriptions = 0 }
+                        d = new { rpcVersion = 1, authentication = BuildAuth(salt, challenge), eventSubscriptions = EventMask }
                     };
                 }
                 else
                 {
-                    identify = new { op = 1, d = new { rpcVersion = 1, eventSubscriptions = 0 } };
+                    identify = new { op = 1, d = new { rpcVersion = 1, eventSubscriptions = EventMask } };
                 }
                 _ = Task.Run(async () =>
                 {
@@ -199,6 +204,12 @@ public sealed class ObsClient : IDisposable
 
             case 2: // Identified
                 _identified.TrySetResult(true);
+                break;
+
+            case 5: // Event
+                var type = d.GetProperty("eventType").GetString() ?? "";
+                var data = d.TryGetProperty("eventData", out var ed) ? ed.Clone() : default;
+                try { EventReceived?.Invoke(type, data); } catch { }
                 break;
 
             case 7: // RequestResponse
