@@ -27,6 +27,21 @@ jobs:
       - name: Gerar instalador
         run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\NTOobs.iss'
 
+      - name: Gerar pacote MSIX (Microsoft Store)
+        shell: pwsh
+        run: |
+          [xml]$proj = Get-Content NTOobs/NTOobs.csproj
+          $version = ($proj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version + ".0"
+          New-Item -ItemType Directory -Force msix-build | Out-Null
+          Copy-Item dist/NTOobs.exe msix-build/
+          Copy-Item -Recurse msix/Assets msix-build/Assets
+          (Get-Content msix/AppxManifest.xml -Raw).Replace("__VERSION__", $version) | Set-Content msix-build/AppxManifest.xml -Encoding utf8
+          $makeappx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter makeappx.exe |
+            Where-Object { $_.FullName -match "\\x64\\" } | Sort-Object FullName -Descending | Select-Object -First 1
+          & $makeappx.FullName pack /d msix-build /p "dist/NTOobs.msix" /o
+          if ($LASTEXITCODE -ne 0) { throw "makeappx falhou" }
+          Write-Host "MSIX $version gerado"
+
       - name: Guardar arquivos da execução
         uses: actions/upload-artifact@v4
         with:
@@ -34,6 +49,7 @@ jobs:
           path: |
             installer/Output/NTOobs-Setup.exe
             dist/NTOobs.exe
+            dist/NTOobs.msix
 
       - name: Publicar Release
         if: startsWith(github.ref, 'refs/tags/')
