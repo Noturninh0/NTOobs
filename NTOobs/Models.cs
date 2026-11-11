@@ -25,7 +25,8 @@ public enum ActionType
     CounterReset,
     Marker,
     InstantReplay,
-    GoLive
+    GoLive,
+    AlertsToggle
 }
 
 /// <summary>Que tipo de lista ajuda a escolher o destino da ação.</summary>
@@ -51,6 +52,7 @@ public static class Actions
         new(ActionType.Hotkey, "Executar um atalho do OBS (lista)", true, "3. Nome interno do atalho:", TargetList.Hotkeys),
         new(ActionType.KeyCombo, "Simular combinação de teclas no OBS", true, "3. Combinação (ex.: Ctrl+Alt+F9):"),
         new(ActionType.MusicToggle, "Pausar / retomar a música live", false, "3. (esta ação não precisa de destino)"),
+        new(ActionType.AlertsToggle, "Ligar / desligar alertas na tela", false, "3. (desligado, nenhum alerta da Twitch aparece na live)"),
         new(ActionType.Sound, "Tocar som do soundboard", true, "3. Nome do som:", TargetList.Sounds),
         new(ActionType.Macro, "Executar macro", true, "3. Nome da macro:", TargetList.Macros),
         new(ActionType.CounterAdd, "Contador: somar 1", true, "3. Nome do contador:", TargetList.Counters),
@@ -199,6 +201,12 @@ public sealed class TextStyle
     }
 }
 
+public sealed class UserTheme
+{
+    public string Name { get; set; } = "";
+    public string File { get; set; } = "";
+}
+
 public sealed class TwitchCommand
 {
     public string Command { get; set; } = "";
@@ -213,6 +221,16 @@ public sealed class Settings
     public string Password { get; set; } = "";
     public bool AutoConnect { get; set; } = true;
     public bool DarkTheme { get; set; } = true;
+
+    /// <summary>Imagem de fundo do app: vazio = só a cor (escuro/claro), ou o arquivo de um tema importado.</summary>
+    public string ThemeImage { get; set; } = "";
+
+    /// <summary>Temas que o usuário importou (imagens do próprio PC).</summary>
+    public List<UserTheme> UserThemes { get; set; } = new();
+    public int ThemeImageOpacity { get; set; } = 35;
+
+    /// <summary>true = a imagem cobre a janela inteira (corta as sobras); false = mostra a imagem inteira.</summary>
+    public bool ThemeFill { get; set; } = true;
     public string MusicUrl { get; set; } = "";
     public int MusicVolume { get; set; } = 60;
     public bool MusicLoop { get; set; } = true;
@@ -266,6 +284,7 @@ public sealed class Settings
     public bool AlertBits { get; set; } = true;
     public string AlertSound { get; set; } = "";
     public string AlertTemplate { get; set; } = "classico";
+    public bool AlertsOn { get; set; } = true;
     public string AlertPosition { get; set; } = "top";
     public int AlertDuration { get; set; } = 6;
     public Dictionary<string, string> AlertMedia { get; set; } = new();

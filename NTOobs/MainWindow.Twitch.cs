@@ -129,8 +129,10 @@ public partial class MainWindow
             "bits" => _settings.AlertBits,
             _ => true
         };
-        Log("Twitch: " + title);
-        if (on) _alerts.Push(kind, title, detail);
+        if (on && !_alerts.Push(kind, title, detail))
+            Log("Twitch: " + title + " (alertas desligados: não apareceu na tela)");
+        else
+            Log("Twitch: " + title);
     }
 
     static string NormalizeCommand(string s) => "!" + s.Trim().TrimStart('!').ToLowerInvariant();
@@ -244,7 +246,7 @@ public partial class MainWindow
 
     void BtnAlertTest_Click(object sender, RoutedEventArgs e)
     {
-        _alerts.Push("test", "Alerta de teste!", "Se você está vendo isso no OBS, os alertas funcionam.");
+        _alerts.Push("test", "Alerta de teste!", "Se você está vendo isso no OBS, os alertas funcionam.", true);
         Log("Alerta de teste enviado.");
     }
 

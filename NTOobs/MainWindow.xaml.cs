@@ -155,12 +155,16 @@ public partial class MainWindow : Window
 
     // ---------- Tema e navegação ----------
 
-    static void ApplyThemeColors(bool dark)
+    static void ApplyThemeColors(bool dark, bool hasImage = false)
     {
         var colors = dark ? DarkColors : LightColors;
         foreach (var kv in colors)
-            Application.Current.Resources[kv.Key] =
-                new SolidColorBrush((Color)ColorConverter.ConvertFromString(kv.Value));
+        {
+            var color = (Color)ColorConverter.ConvertFromString(kv.Value);
+            // com imagem de fundo, os cartões ficam levemente transparentes
+            if (hasImage && kv.Key is "Card" or "Input") color.A = 0xDC;
+            Application.Current.Resources[kv.Key] = new SolidColorBrush(color);
+        }
     }
 
     void ApplyTitleBar(bool dark)
@@ -171,14 +175,7 @@ public partial class MainWindow : Window
         try { DwmSetWindowAttribute(handle, 20, ref value, sizeof(int)); } catch { }
     }
 
-    void BtnTheme_Click(object sender, RoutedEventArgs e)
-    {
-        _settings.DarkTheme = !_settings.DarkTheme;
-        ApplyThemeColors(_settings.DarkTheme);
-        ApplyTitleBar(_settings.DarkTheme);
-        BtnTheme.Content = _settings.DarkTheme ? "" : "";
-        SaveSettings();
-    }
+    void BtnTheme_Click(object sender, RoutedEventArgs e) => SetBaseTheme(!_settings.DarkTheme);
 
     void Nav_Checked(object sender, RoutedEventArgs e)
     {
@@ -186,7 +183,7 @@ public partial class MainWindow : Window
         FrameworkElement?[] pages =
         {
             PagePanel, PageShortcuts, PageConnection, PageLog, PageMusic,
-            PageMacros, PageSounds, PageTools, PageTwitch, PagePhone
+            PageMacros, PageSounds, PageTools, PageTwitch, PagePhone, PageLook
         };
         for (int i = 0; i < pages.Length; i++)
             if (pages[i] != null) pages[i]!.Visibility = i == page ? Visibility.Visible : Visibility.Collapsed;
@@ -606,6 +603,9 @@ public partial class MainWindow : Window
             case ActionType.GoLive:
                 RequireObs();
                 _ = GoLiveAsync(false);
+                break;
+            case ActionType.AlertsToggle:
+                ToggleAlertsOnScreen();
                 break;
         }
         return true;

@@ -79,6 +79,8 @@ public partial class MainWindow
         };
         if (_settings.MusicEnabled)
             list.Add(new("act:MusicToggle|", "Música", "pausar / retomar", "Live"));
+        list.Add(new("act:AlertsToggle|", _settings.AlertsOn ? "Desligar alertas" : "Ligar alertas",
+            _settings.AlertsOn ? "alertas ligados" : "alertas DESLIGADOS", "Live"));
 
         var profile = ActiveProfileObj.Name;
         for (int i = 0; i < _bindings.Count; i++)

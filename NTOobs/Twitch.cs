@@ -491,13 +491,26 @@ public sealed class AlertsHub
 
     public static bool IsVideo(string file) => VideoExt.Contains(Path.GetExtension(file).ToLowerInvariant());
 
-    public void Push(string kind, string title, string detail)
+    /// <summary>false = alertas desligados pelo streamer: nada aparece na tela.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Quantos alertas não apareceram enquanto estavam desligados.</summary>
+    public int Skipped { get; set; }
+
+    /// <summary>Coloca um alerta na fila. force = aparece mesmo com os alertas desligados (testes).</summary>
+    public bool Push(string kind, string title, string detail, bool force = false)
     {
+        if (!Enabled && !force)
+        {
+            Skipped++;
+            return false;
+        }
         lock (_lock)
         {
             _items.Add(new TwitchAlert(_next++, kind, title, detail));
             if (_items.Count > 50) _items.RemoveAt(0);
         }
+        return true;
     }
 
     string? SoundFor(string kind)
@@ -519,7 +532,7 @@ public sealed class AlertsHub
                 media[k] = null;
             sound[k] = SoundFor(key) != null;
         }
-        return new { template = Template, position = Position, duration = Math.Clamp(Duration, 2, 30), font = Font, media, sound };
+        return new { enabled = Enabled, template = Template, position = Position, duration = Math.Clamp(Duration, 2, 30), font = Font, media, sound };
     }
 
     /// <summary>Responde às páginas /alerts. true = tratado.</summary>
@@ -736,6 +749,7 @@ async function poll(){
   try{
     const r=await fetch('/alerts/poll?after='+last);const d=await r.json();
     applyCfg(d.cfg);
+    if(!d.cfg.enabled){queue.length=0;if(box.classList.contains('show'))box.classList.add('hide');}
     if(last>=0){for(const a of d.items)queue.push(a);}
     last=d.last;show();
   }catch(e){}

@@ -12,6 +12,10 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
+        <!-- Imagem de fundo do tema (atrás de tudo) -->
+        <Image x:Name="ThemeBg" Grid.ColumnSpan="2" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+               IsHitTestVisible="False" Opacity="0.35" Visibility="Collapsed"/>
+
         <!-- Menu lateral -->
         <Border Grid.Column="0" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
             <StackPanel Margin="0,12,0,0" HorizontalAlignment="Center">
@@ -23,6 +27,7 @@
                 <RadioButton x:Name="NavTools" Style="{StaticResource NavButton}" Content="&#xE90F;" ToolTip="Ferramentas: contadores, replay, começar live, marcadores" Tag="7" Checked="Nav_Checked"/>
                 <RadioButton x:Name="NavTwitch" Style="{StaticResource NavButton}" Content="&#xE8BD;" ToolTip="Twitch: chat e alertas" Tag="8" Checked="Nav_Checked"/>
                 <RadioButton x:Name="NavPhone" Style="{StaticResource NavButton}" Content="&#xE8EA;" ToolTip="Controle pelo celular" Tag="9" Checked="Nav_Checked"/>
+                <RadioButton x:Name="NavLook" Style="{StaticResource NavButton}" Content="&#xE790;" ToolTip="Aparência: tema e fundo" Tag="10" Checked="Nav_Checked"/>
                 <RadioButton x:Name="NavConnection" Style="{StaticResource NavButton}" Content="&#xE774;" ToolTip="Conexão com o OBS" Tag="2" Checked="Nav_Checked"/>
                 <RadioButton x:Name="NavLog" Style="{StaticResource NavButton}" Content="&#xE8A5;" ToolTip="Registro" Tag="3" Checked="Nav_Checked"/>
             </StackPanel>
@@ -136,7 +141,9 @@
                                     <Button x:Name="BtnSkipCountdown" Content="Pular contagem" Margin="0,0,8,0" Visibility="Collapsed" Click="BtnSkipCountdown_Click"/>
                                     <Button Content="Marcar momento" Margin="0,0,8,0" Click="BtnMarker_Click"/>
                                     <Button Content="Replay instantâneo" Margin="0,0,8,0" Click="BtnReplayTest_Click"/>
-                                    <Button Content="Encerrar live" Click="BtnEndLive_Click"/>
+                                    <Button Content="Encerrar live" Margin="0,0,8,0" Click="BtnEndLive_Click"/>
+                                    <Button x:Name="BtnPanelAlerts" Content="Alertas: ligados" Click="BtnAlertsToggle_Click"
+                                            ToolTip="Liga ou desliga os alertas da Twitch na tela"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -709,6 +716,18 @@
                                 <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
                                     <StackPanel>
                                         <TextBlock Text="Alertas na tela" FontWeight="SemiBold"/>
+                                        <Border Background="{DynamicResource Hover}" CornerRadius="8" Padding="12,10" Margin="0,8,0,8">
+                                            <DockPanel>
+                                                <Button x:Name="BtnAlertsKey" DockPanel.Dock="Right" Content="Definir tecla" Margin="6,0,0,0" Click="BtnAlertsKey_Click"/>
+                                                <Button x:Name="BtnAlertsToggle" DockPanel.Dock="Right" Content="Desligar alertas" Style="{StaticResource PrimaryButton}"
+                                                        Margin="6,0,0,0" Click="BtnAlertsToggle_Click"/>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock x:Name="TxtAlertsState" Text="Alertas LIGADOS" FontWeight="SemiBold"/>
+                                                    <TextBlock x:Name="TxtAlertsKey" Style="{StaticResource MutedText}"
+                                                               Text="Desligue quando não quiser nada aparecendo na tela (ex.: no meio de uma partida)."/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
                                         <TextBlock Style="{StaticResource MutedText}" Margin="0,2,0,10"
                                                    Text="Escolha um modelo pronto e, se quiser, coloque a sua própria imagem, GIF ou vídeo e o seu som em cada tipo de alerta. Adicionar alertas no OBS cria a fonte &quot;NTOobs Alertas&quot; em todas as cenas (só funciona com o NTOobs aberto)."/>
                                         <WrapPanel>
@@ -856,6 +875,56 @@
                                            Text="• O código no endereço impede que outras pessoas da rede controlem a sua live. Se alguém descobrir, clique em Gerar novo código."/>
                                 <TextBlock Style="{StaticResource MutedText}" Margin="0,4,0,0"
                                            Text="• Dica: no navegador do celular, use Adicionar à tela inicial para abrir como um app."/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- PÁGINA 10: Aparência -->
+                <ScrollViewer x:Name="PageLook" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                    <StackPanel Margin="24" MaxWidth="1100">
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Tema" FontWeight="SemiBold"/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,2,0,10" Text="As cores do app. O padrão continua sendo escuro ou claro."/>
+                                <WrapPanel>
+                                    <RadioButton x:Name="RbThemeDark" Content="Escuro" GroupName="BaseTheme" Style="{StaticResource ChoiceRadio}" Margin="0,0,24,0" Checked="BaseTheme_Checked"/>
+                                    <RadioButton x:Name="RbThemeLight" Content="Claro" GroupName="BaseTheme" Style="{StaticResource ChoiceRadio}" Checked="BaseTheme_Checked"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Meus temas" FontWeight="SemiBold"/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,2,0,12"
+                                           Text="Importe imagens do seu computador (dá para escolher várias de uma vez). Cada imagem vira um tema de fundo. Clique num tema para usar. As imagens são copiadas para a pasta do NTOobs e ficam só no seu PC."/>
+                                <WrapPanel>
+                                    <Button Content="Importar tema..." Style="{StaticResource PrimaryButton}" Margin="0,0,8,6" Click="BtnThemeImport_Click"/>
+                                    <Button Content="Sem imagem (só escuro/claro)" Margin="0,0,8,6" Click="BtnThemeNone_Click"/>
+                                </WrapPanel>
+                                <Border Background="{DynamicResource Hover}" CornerRadius="8" Padding="12,10" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <TextBlock x:Name="TxtThemeSize" FontWeight="SemiBold" Text="Tamanho recomendado: 1920 × 1292 px"/>
+                                        <TextBlock x:Name="TxtThemeSizeHint" Style="{StaticResource MutedText}"
+                                                   Text="Imagem deitada, na mesma proporção da janela, cobre o app inteiro sem cortar nada."/>
+                                    </StackPanel>
+                                </Border>
+                                <TextBlock Text="AJUSTE DA IMAGEM" Style="{StaticResource CapsText}" Margin="0,12,0,6"/>
+                                <WrapPanel>
+                                    <RadioButton x:Name="RbThemeFill" Content="Preencher toda a janela (recomendado)" GroupName="ThemeFit"
+                                                 Style="{StaticResource ChoiceRadio}" Margin="0,0,24,0" Checked="ThemeFit_Checked"/>
+                                    <RadioButton x:Name="RbThemeWhole" Content="Mostrar a imagem inteira" GroupName="ThemeFit"
+                                                 Style="{StaticResource ChoiceRadio}" Checked="ThemeFit_Checked"/>
+                                </WrapPanel>
+                                <WrapPanel x:Name="PanelThemes" Margin="0,10,0,0"/>
+                                <TextBlock x:Name="TxtNoThemes" Style="{StaticResource MutedText}" Margin="0,6,0,0"
+                                           Text="Nenhum tema importado ainda. Clique em Importar tema."/>
+                                <TextBlock Text="VISIBILIDADE DA IMAGEM" Style="{StaticResource CapsText}" Margin="0,12,0,4"/>
+                                <DockPanel MaxWidth="420" HorizontalAlignment="Left">
+                                    <TextBlock x:Name="TxtThemeOpacity" DockPanel.Dock="Right" Width="44" TextAlignment="Right" Text="35%"/>
+                                    <Slider x:Name="SldThemeOpacity" Width="360" Minimum="5" Maximum="100" ValueChanged="SldThemeOpacity_ValueChanged"/>
+                                </DockPanel>
+                                <TextBlock x:Name="TxtThemeInfo" Style="{StaticResource MutedText}" Margin="0,10,0,0" Text="Sem imagem de fundo."/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

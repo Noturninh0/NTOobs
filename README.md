@@ -143,6 +143,7 @@ Na aba **Ferramentas** (ícone de chave):
 Na aba **Twitch**:
 
 - Só com o **nome do canal**, o NTOobs lê o chat e recebe os alertas de **sub, raid e bits**.
+- **Ligar / desligar alertas**: no topo do card Alertas na tela (ou no Painel) há um botão para desligar todos os alertas, e dá para definir uma tecla para isso. Desligado, nenhum alerta aparece na live (ex.: no meio de uma partida). A ação **Ligar / desligar alertas na tela** também existe na aba Atalhos, nas macros e no celular.
 - **Alertas na tela**: escolha um dos 6 modelos prontos (Clássico, Neon, Minimalista, Faixa, Pop e Conquista), a posição (topo, centro ou embaixo) e o tempo na tela.
 - Em cada tipo de alerta (follow, sub, raid, bits) dá para colocar **a sua própria imagem, GIF ou vídeo** (png, jpg, gif, webp, mp4, webm, até 50 MB) e **o seu próprio som**. Sem som próprio, toca o som padrão. Vídeos tocam até o fim (no máximo 15 segundos).
 - **Ver prévia no navegador** mostra os alertas passando em sequência. **Adicionar alertas no OBS** cria a fonte **NTOobs Alertas** em todas as cenas. Os alertas só aparecem com o NTOobs aberto.
@@ -160,6 +161,15 @@ Na aba **Celular**, marque **Ativar controle pelo celular** e abra o endereço m
 - Na primeira vez, o Windows pergunta se o NTOobs pode usar a rede: marque **Redes privadas** e clique em **Permitir**.
 - O código no endereço impede que outras pessoas da rede controlem a sua live. Se alguém descobrir, clique em **Gerar novo código**.
 - Dica: no navegador do celular, use **Adicionar à tela inicial** para abrir como um app.
+
+## Aparência
+
+Na aba **Aparência** (ícone de pincel):
+
+- **Tema**: escuro ou claro (o padrão). O botão no topo da janela também alterna.
+- **Meus temas**: clique em **Importar tema...** e escolha uma ou várias imagens do seu PC. Cada imagem vira um tema de fundo. Clique num tema para usar, ajuste a **visibilidade da imagem** e use **Sem imagem** para voltar ao escuro/claro puro. As imagens são copiadas para a pasta do NTOobs e ficam só no seu computador.
+- **Tamanho recomendado**: a aba mostra o tamanho ideal da imagem (por padrão **1920 × 1292 px**, a proporção da janela; o número acompanha se você mudar o tamanho da janela) e avisa se a imagem escolhida vai ser cortada ou ficar borrada.
+- **Ajuste da imagem**: **Preencher toda a janela** (padrão) faz qualquer imagem cobrir o app inteiro, cortando o que sobra. Em imagens em pé, o topo é mantido. **Mostrar a imagem inteira** não corta nada.
 
 ## Dicas
 

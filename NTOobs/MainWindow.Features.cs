@@ -31,6 +31,7 @@ public partial class MainWindow
         InitTextStyleUi();
         InitTwitchUi();
         InitAlertsUi();
+        InitThemeUi();
         InitPhone();
 
         _featureTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -75,6 +76,8 @@ public partial class MainWindow
     void RefreshCaptureLabels()
     {
         BtnMacroKey.Content = "Definir tecla";
+        BtnAlertsKey.Content = "Definir tecla";
+        UpdateAlertsStateUi();
         TxtSoundHint.Text = SoundHintDefault;
         RefreshMacroKey();
         RefreshSounds();

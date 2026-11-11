@@ -76,6 +76,48 @@ public partial class MainWindow
         _alerts.Sounds = new Dictionary<string, string>(_settings.AlertSounds);
         _alerts.SoundFile = _settings.AlertSound;
         _alerts.Font = _settings.TextStyle.Font;
+        _alerts.Enabled = _settings.AlertsOn;
+        UpdateAlertsStateUi();
+    }
+
+    // ---------- Ligar / desligar alertas ----------
+
+    void ToggleAlertsOnScreen()
+    {
+        _settings.AlertsOn = !_settings.AlertsOn;
+        _alerts.Enabled = _settings.AlertsOn;
+        SaveSettings();
+        UpdateAlertsStateUi();
+        if (_settings.AlertsOn)
+        {
+            Log("Alertas na tela LIGADOS." + (_alerts.Skipped > 0 ? $" {_alerts.Skipped} alerta(s) não apareceram enquanto estavam desligados." : ""));
+            _alerts.Skipped = 0;
+        }
+        else
+        {
+            Log("Alertas na tela DESLIGADOS: nenhum alerta aparece na live até você ligar de novo.");
+        }
+    }
+
+    void UpdateAlertsStateUi()
+    {
+        bool on = _settings.AlertsOn;
+        TxtAlertsState.Text = on ? "Alertas LIGADOS" : "Alertas DESLIGADOS: nada aparece na tela";
+        TxtAlertsState.SetResourceReference(TextBlock.ForegroundProperty, on ? "Ok" : "Danger");
+        BtnAlertsToggle.Content = on ? "Desligar alertas" : "Ligar alertas";
+        BtnPanelAlerts.Content = on ? "Alertas: ligados" : "Alertas: DESLIGADOS";
+        var keys = KeysFor(ActionType.AlertsToggle, "");
+        TxtAlertsKey.Text = keys.Length > 0
+            ? "Tecla para ligar/desligar: " + keys
+            : "Desligue quando não quiser nada aparecendo na tela (ex.: no meio de uma partida).";
+    }
+
+    void BtnAlertsToggle_Click(object sender, RoutedEventArgs e) => ToggleAlertsOnScreen();
+
+    void BtnAlertsKey_Click(object sender, RoutedEventArgs e)
+    {
+        BtnAlertsKey.Content = "Aperte a tecla...";
+        StartCapture("ligar/desligar os alertas", (vk, dev) => AddBindingFor(ActionType.AlertsToggle, "", vk, ""));
     }
 
     void RefreshAlertKinds()
@@ -107,7 +149,7 @@ public partial class MainWindow
         _settings.AlertTemplate = id;
         SaveSettings();
         ApplyAlertConfig();
-        _alerts.Push("test", "Modelo " + AlertsHub.Templates.First(t => t.Id == id).Name, "assim vão aparecer os seus alertas");
+        _alerts.Push("test", "Modelo " + AlertsHub.Templates.First(t => t.Id == id).Name, "assim vão aparecer os seus alertas", true);
     }
 
     void AlertPosition_Checked(object sender, RoutedEventArgs e)
@@ -196,7 +238,7 @@ public partial class MainWindow
     {
         var sample = AlertsHub.Kinds.FirstOrDefault(k => k.Kind == kind);
         if (sample.Kind == null) return;
-        _alerts.Push(sample.Kind, sample.Title, sample.Detail);
+        _alerts.Push(sample.Kind, sample.Title, sample.Detail, true);
         Log($"Alerta de teste ({sample.Name}) enviado.");
     }
 
