@@ -2,13 +2,21 @@
 
 **Controle o OBS Studio com as teclas do seu teclado durante a live.**
 
+<a href="https://apps.microsoft.com/detail/9PG141XJTKRD?mode=direct"><img src="https://get.microsoft.com/images/pt-br%20dark.svg" width="200" alt="Baixar na Microsoft Store"/></a>
+
 O NTOobs funciona como um StreamDeck feito de teclado. Você escolhe uma tecla, diz o que ela deve fazer no OBS (trocar de cena, mutar o microfone, iniciar a gravação...) e pronto: com o programa aberto, a tecla funciona mesmo que você esteja dentro de um jogo ou de outra janela.
 
 Você pode usar o teclado principal ou **um segundo teclado (ou macropad) só para o OBS**. O NTOobs sabe de qual teclado cada tecla veio, então o teclado extra não atrapalha o que você digita no principal.
 
 ## Baixar
 
-Vá em **[Releases](../../releases/latest)** e baixe:
+### Microsoft Store (recomendado)
+
+O NTOobs está na **[Microsoft Store](https://apps.microsoft.com/detail/9PG141XJTKRD)**. Instalando por lá, o Windows não mostra aviso de segurança e o app se atualiza sozinho. Também dá para abrir a Microsoft Store no PC e pesquisar **NTOobs**.
+
+### GitHub
+
+Se preferir, vá em **[Releases](../../releases/latest)** e baixe:
 
 | Arquivo | Para quê |
 |---|---|
@@ -17,9 +25,9 @@ Vá em **[Releases](../../releases/latest)** e baixe:
 
 Requisitos: Windows 10 ou 11 (64 bits) e OBS Studio 28 ou mais novo. Não precisa instalar o .NET.
 
-> O Windows pode mostrar o aviso "O Windows protegeu o computador" porque o programa não é assinado digitalmente. Clique em **Mais informações** e depois em **Executar assim mesmo**.
+> Nas versões do GitHub, o Windows pode mostrar o aviso "O Windows protegeu o computador" porque o programa não é assinado digitalmente (a versão da Microsoft Store não tem esse aviso). Clique em **Mais informações** e depois em **Executar assim mesmo**.
 
-## Instalação
+## Instalação (versão do GitHub)
 
 1. Abra o `NTOobs-Setup.exe`.
 2. Escolha a pasta (ou deixe a padrão).
@@ -201,6 +209,8 @@ Projeto em C# / WPF (.NET 8), sem dependências externas. O cliente do OBS fala 
 build.bat                       compila e abre o NTOobs.exe (precisa do .NET 8 SDK, instala pelo winget)
 NTOobs/                         código-fonte
 installer/NTOobs.iss            script do instalador (Inno Setup 6)
+msix/                           manifesto e ícones do pacote da Microsoft Store
+PRIVACIDADE.md                  política de privacidade (exigida pela Store)
 .github/workflows/release.yml   compila e publica a Release
 ```
 
@@ -214,3 +224,5 @@ git push origin v1.0.0
 ```
 
 Para mudar o número de versão mostrado no instalador, edite `AppVersion` em `installer/NTOobs.iss`.
+
+O mesmo workflow também gera `NTOobs.msix` (no artefato da execução, não na Release). Para atualizar a Microsoft Store, crie um novo envio no Partner Center e envie esse arquivo; a versão do pacote vem do `<Version>` do `NTOobs.csproj`, que precisa ser maior que a da Store.
